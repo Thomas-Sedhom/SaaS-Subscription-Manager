@@ -5,8 +5,8 @@ import { sendSuccess } from '../../shared/utils/api-response';
 import { subscriptionsService } from './subscriptions.service';
 
 class SubscriptionsController {
-  listMine = async (req: Request, res: Response) => {
-    const result = await subscriptionsService.listUserSubscriptions(req.user!);
+  getMine = async (req: Request, res: Response) => {
+    const result = await subscriptionsService.getMySubscriptions(req.user!);
     return sendSuccess(res, HTTP_STATUS.OK, 'Subscriptions fetched successfully', result);
   };
 
@@ -15,13 +15,14 @@ class SubscriptionsController {
     return sendSuccess(res, HTTP_STATUS.CREATED, 'Subscription created successfully', result);
   };
 
-  update = async (req: Request, res: Response) => {
-    const result = await subscriptionsService.updateSubscription(
-      req.user!,
-      req.params.subscriptionId,
-      req.body
-    );
-    return sendSuccess(res, HTTP_STATUS.OK, 'Subscription updated successfully', result);
+  changePlan = async (req: Request, res: Response) => {
+    const result = await subscriptionsService.changePlan(req.user!, req.params.subscriptionId, req.body);
+    return sendSuccess(res, HTTP_STATUS.OK, 'Plan changed successfully', result);
+  };
+
+  cancel = async (req: Request, res: Response) => {
+    const result = await subscriptionsService.cancelSubscription(req.user!, req.params.subscriptionId, req.body);
+    return sendSuccess(res, HTTP_STATUS.OK, 'Subscription canceled successfully', result);
   };
 }
 

@@ -2,7 +2,13 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
-import { planStore, resetInMemoryStore, userStore } from '../shared/database/in-memory-store';
+import {
+  paymentMethodStore,
+  planStore,
+  resetInMemoryStore,
+  subscriptionStore,
+  userStore
+} from '../shared/database/in-memory-store';
 import { jwtService } from '../shared/services/jwt.service';
 
 describe('plans module', () => {
@@ -122,5 +128,47 @@ describe('plans module', () => {
 
     expect(deleteResponse.status).toBe(200);
     expect(deleteResponse.body.data.id).toBe(createdId);
+  });
+
+  it('rejects deleting a plan that is used by an active subscription', async () => {
+    const adminToken = jwtService.createJWT({
+      id: 'admin_1',
+      email: 'admin@example.com',
+      role: 'ADMIN'
+    });
+
+    paymentMethodStore.push({
+      id: 'pm_1',
+      userId: 'user_1',
+      methodType: 'card',
+      methodDetails: 'Visa ending 4242',
+      isDefault: true,
+      last4: '4242',
+      brand: 'Visa',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    subscriptionStore.push({
+      id: 'subscription_1',
+      userId: 'user_1',
+      planId: 'plan_1',
+      status: 'ACTIVE',
+      startDate: new Date(),
+      endDate: null,
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(),
+      cancelAtPeriodEnd: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    const app = createApp();
+    const deleteResponse = await request(app)
+      .delete('/api/v1/plans/plan_1')
+      .set('Cookie', [`accessToken=${adminToken}`]);
+
+    expect(deleteResponse.status).toBe(400);
   });
 });

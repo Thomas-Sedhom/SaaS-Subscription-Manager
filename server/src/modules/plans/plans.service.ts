@@ -67,13 +67,19 @@ export class PlansService {
   }
 
   async deletePlan(planId: string) {
-    const deletedPlan = await this.plansRepository.delete(planId);
+    const existingPlan = await this.plansRepository.findById(planId);
 
-    if (!deletedPlan) {
+    if (!existingPlan) {
       throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    return deletedPlan;
+    const isInUse = await this.plansRepository.hasActiveSubscriptions(planId);
+
+    if (isInUse) {
+      throw new AppError('Cannot delete a plan that is used by active or pending subscriptions', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    return this.plansRepository.delete(planId);
   }
 }
 

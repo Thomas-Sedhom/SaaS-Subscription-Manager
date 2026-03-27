@@ -1,4 +1,4 @@
-export interface MockPaymentResult {
-  paymentId: string;
-  status: 'SUCCESS';
+export interface PaymentProcessResult<TSubscription> {
+  payment: unknown;
+  subscription: TSubscription;
 }

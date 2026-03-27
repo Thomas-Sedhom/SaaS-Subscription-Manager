@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { appConfig } from './config/app.config';
 import { adminRouter } from './modules/admin/admin.routes';
 import { authRouter } from './modules/auth/auth.routes';
+import { paymentMethodsRouter } from './modules/payment-methods/payment-methods.routes';
 import { paymentsRouter } from './modules/payments/payments.routes';
 import { plansRouter } from './modules/plans/plans.routes';
 import { subscriptionsRouter } from './modules/subscriptions/subscriptions.routes';
@@ -17,6 +18,7 @@ export const registerRoutes = (app: Express): void => {
   router.use('/plans', plansRouter);
   router.use('/subscriptions', subscriptionsRouter);
   router.use('/payments', paymentsRouter);
+  router.use('/payment-methods', paymentMethodsRouter);
   router.use('/admin', adminRouter);
 
   app.use(appConfig.apiPrefix, router);

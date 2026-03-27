@@ -17,13 +17,15 @@ describe('route mounting', () => {
     const app = createApp();
 
     const usersResponse = await request(app).get('/api/v1/users/profile');
-    const subscriptionsResponse = await request(app).get('/api/v1/subscriptions/my-subscriptions');
-    const paymentsResponse = await request(app).post('/api/v1/payments');
+    const subscriptionsResponse = await request(app).get('/api/v1/subscriptions/me');
+    const paymentsResponse = await request(app).get('/api/v1/payments/me');
+    const paymentMethodsResponse = await request(app).get('/api/v1/payment-methods/me');
     const adminResponse = await request(app).get('/api/v1/admin/dashboard');
 
     expect(usersResponse.status).toBe(401);
     expect(subscriptionsResponse.status).toBe(401);
     expect(paymentsResponse.status).toBe(401);
+    expect(paymentMethodsResponse.status).toBe(401);
     expect(adminResponse.status).toBe(401);
   });
 });

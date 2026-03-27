@@ -3,9 +3,9 @@ import { IsBoolean, IsOptional, IsString, ValidateNested } from 'class-validator
 
 import { CreatePaymentMethodDto } from '../../payment-methods/dto/create-payment-method.dto';
 
-export class CreateSubscriptionDto {
+export class ChangePlanDto {
   @IsString()
-  planId!: string;
+  newPlanId!: string;
 
   @IsOptional()
   @IsString()

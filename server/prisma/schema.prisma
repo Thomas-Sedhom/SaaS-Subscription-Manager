@@ -31,6 +31,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentType {
+  SUBSCRIPTION_CREATE
+  PLAN_CHANGE
+}
+
 model User {
   id             String          @id @default(uuid())
   name           String
@@ -80,18 +85,21 @@ model PlanFeature {
 }
 
 model Subscription {
-  id           String              @id @default(uuid())
-  userId       String
-  planId       String
-  status       SubscriptionStatus  @default(PENDING)
-  startDate    DateTime?
-  endDate      DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id                 String              @id @default(uuid())
+  userId             String
+  planId             String
+  status             SubscriptionStatus  @default(PENDING)
+  startDate          DateTime?
+  endDate            DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan         Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
-  payments     Payment[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments           Payment[]
 
   @@index([userId])
   @@index([planId])
@@ -105,6 +113,9 @@ model Payment {
   currency        String         @default("USD")
   status          PaymentStatus  @default(PENDING)
   provider        String
+  failureReason   String?
+  type            PaymentType
+  targetPlanId    String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -121,6 +132,9 @@ model PaymentMethod {
   methodType    String
   methodDetails String
   isDefault     Boolean   @default(false)
+  last4         String?
+  brand         String?
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

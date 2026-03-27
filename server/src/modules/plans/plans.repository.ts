@@ -1,4 +1,4 @@
-import { createId, planStore } from '../../shared/database/in-memory-store';
+import { createId, planStore, subscriptionStore } from '../../shared/database/in-memory-store';
 import type { PlanRecord } from '../../shared/database/in-memory-store';
 
 interface CreatePlanInput {
@@ -28,6 +28,16 @@ export class PlansRepository {
 
   findByName(name: string) {
     return Promise.resolve(planStore.find((plan) => plan.name === name) ?? null);
+  }
+
+  hasActiveSubscriptions(planId: string) {
+    return Promise.resolve(
+      subscriptionStore.some(
+        (subscription) =>
+          subscription.planId === planId &&
+          (subscription.status === 'ACTIVE' || subscription.status === 'PENDING')
+      )
+    );
   }
 
   create(data: CreatePlanInput) {

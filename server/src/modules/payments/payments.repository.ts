@@ -1,35 +1,43 @@
 import {
   createId,
+  paymentMethodStore,
   paymentStore,
   planStore,
   subscriptionStore
 } from '../../shared/database/in-memory-store';
-import type { PaymentStatus } from '../../shared/database/in-memory-store';
+import type { PaymentRecord, PaymentStatus, PaymentType } from '../../shared/database/in-memory-store';
 
 interface CreatePaymentInput {
   subscriptionId: string;
+  paymentMethodId: string | null;
   amount: number;
-  paymentMethod: string;
+  currency: string;
   provider: string;
   status: PaymentStatus;
+  failureReason: string | null;
+  type: PaymentType;
+  targetPlanId: string | null;
 }
 
 interface UpdatePaymentInput {
   status?: PaymentStatus;
+  failureReason?: string | null;
 }
 
 export class PaymentsRepository {
+  private mapPayment(payment: PaymentRecord) {
+    return {
+      ...payment,
+      subscription: subscriptionStore.find((subscription) => subscription.id === payment.subscriptionId) ?? null,
+      paymentMethod:
+        paymentMethodStore.find((paymentMethod) => paymentMethod.id === payment.paymentMethodId) ?? null,
+      targetPlan: planStore.find((plan) => plan.id === payment.targetPlanId) ?? null
+    };
+  }
+
   findById(id: string) {
     const payment = paymentStore.find((entry) => entry.id === id) ?? null;
-
-    if (!payment) {
-      return Promise.resolve(null);
-    }
-
-    return Promise.resolve({
-      ...payment,
-      subscription: subscriptionStore.find((subscription) => subscription.id === payment.subscriptionId) ?? null
-    });
+    return Promise.resolve(payment ? this.mapPayment(payment) : null);
   }
 
   findBySubscriptionId(subscriptionId: string) {
@@ -37,33 +45,41 @@ export class PaymentsRepository {
       paymentStore
         .filter((payment) => payment.subscriptionId === subscriptionId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((payment) => this.mapPayment(payment))
     );
   }
 
-  findSubscriptionById(subscriptionId: string) {
-    const subscription = subscriptionStore.find((entry) => entry.id === subscriptionId) ?? null;
+  findByUserId(userId: string) {
+    const subscriptionIds = subscriptionStore
+      .filter((subscription) => subscription.userId === userId)
+      .map((subscription) => subscription.id);
 
-    if (!subscription) {
-      return Promise.resolve(null);
-    }
-
-    return Promise.resolve({
-      ...subscription,
-      plan: planStore.find((plan) => plan.id === subscription.planId) ?? null
-    });
+    return Promise.resolve(
+      paymentStore
+        .filter((payment) => subscriptionIds.includes(payment.subscriptionId))
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((payment) => this.mapPayment(payment))
+    );
   }
 
   create(data: CreatePaymentInput) {
     const now = new Date();
-    const payment = {
+    const payment: PaymentRecord = {
       id: createId('payment'),
-      ...data,
+      subscriptionId: data.subscriptionId,
+      paymentMethodId: data.paymentMethodId,
+      amount: data.amount,
+      currency: data.currency,
+      provider: data.provider,
+      status: data.status,
+      failureReason: data.failureReason,
+      type: data.type,
+      targetPlanId: data.targetPlanId,
       createdAt: now,
       updatedAt: now
     };
 
     paymentStore.push(payment);
-
     return this.findById(payment.id);
   }
 
@@ -79,22 +95,5 @@ export class PaymentsRepository {
     });
 
     return this.findById(id);
-  }
-
-  updateSubscriptionToActive(subscriptionId: string) {
-    const subscription = subscriptionStore.find((entry) => entry.id === subscriptionId) ?? null;
-
-    if (!subscription) {
-      return Promise.resolve(null);
-    }
-
-    Object.assign(subscription, {
-      status: 'ACTIVE',
-      startDate: new Date(),
-      endDate: null,
-      updatedAt: new Date()
-    });
-
-    return Promise.resolve(subscription);
   }
 }

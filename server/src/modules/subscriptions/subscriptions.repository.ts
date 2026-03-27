@@ -2,47 +2,49 @@ import {
   createId,
   paymentStore,
   planStore,
-  subscriptionStore
+  subscriptionStore,
+  userStore
 } from '../../shared/database/in-memory-store';
+import type { BillingCycle, SubscriptionStatus } from '../../shared/database/in-memory-store';
 
 interface CreateSubscriptionInput {
   userId: string;
   planId: string;
-  status: 'ACTIVE' | 'EXPIRED' | 'CANCELED' | 'PENDING';
+  status: SubscriptionStatus;
 }
 
 interface UpdateSubscriptionInput {
   planId?: string;
-  status?: 'ACTIVE' | 'EXPIRED' | 'CANCELED' | 'PENDING';
+  status?: SubscriptionStatus;
+  startDate?: Date | null;
   endDate?: Date | null;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
+  cancelAtPeriodEnd?: boolean;
 }
 
 export class SubscriptionsRepository {
-  findById(id: string) {
-    const subscription = subscriptionStore.find((entry) => entry.id === id) ?? null;
-
-    if (!subscription) {
-      return Promise.resolve(null);
-    }
-
-    return Promise.resolve({
+  private mapSubscription(subscription: (typeof subscriptionStore)[number]) {
+    return {
       ...subscription,
+      user: userStore.find((user) => user.id === subscription.userId) ?? null,
       plan: planStore.find((plan) => plan.id === subscription.planId) ?? null,
       payments: paymentStore.filter((payment) => payment.subscriptionId === subscription.id)
-    });
+    };
+  }
+
+  findById(id: string) {
+    const subscription = subscriptionStore.find((entry) => entry.id === id) ?? null;
+    return Promise.resolve(subscription ? this.mapSubscription(subscription) : null);
   }
 
   findByUserId(userId: string) {
-    const items = subscriptionStore
-      .filter((subscription) => subscription.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .map((subscription) => ({
-        ...subscription,
-        plan: planStore.find((plan) => plan.id === subscription.planId) ?? null,
-        payments: paymentStore.filter((payment) => payment.subscriptionId === subscription.id)
-      }));
-
-    return Promise.resolve(items);
+    return Promise.resolve(
+      subscriptionStore
+        .filter((subscription) => subscription.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((subscription) => this.mapSubscription(subscription))
+    );
   }
 
   findCurrentByUserId(userId: string) {
@@ -53,7 +55,7 @@ export class SubscriptionsRepository {
         )
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
 
-    return Promise.resolve(subscription);
+    return Promise.resolve(subscription ? this.mapSubscription(subscription) : null);
   }
 
   findPlanById(planId: string) {
@@ -69,12 +71,14 @@ export class SubscriptionsRepository {
       status: data.status,
       startDate: null,
       endDate: null,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
       createdAt: now,
       updatedAt: now
     };
 
     subscriptionStore.push(subscription);
-
     return this.findById(subscription.id);
   }
 
