@@ -1,0 +1,42 @@
+import 'reflect-metadata';
+
+import cors from 'cors';
+import express from 'express';
+import helmet from 'helmet';
+import morgan from 'morgan';
+
+import { appConfig } from './config/app.config';
+import { env } from './config/env';
+import { registerRoutes } from './routes';
+import { errorHandler } from './shared/errors/error-handler';
+import { notFoundMiddleware } from './shared/middlewares/not-found.middleware';
+
+export const createApp = () => {
+  const app = express();
+
+  app.use(helmet());
+  app.use(
+    cors({
+      origin: env.CORS_ORIGIN
+    })
+  );
+  app.use(express.json());
+  app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: appConfig.name,
+      data: {
+        version: appConfig.version
+      }
+    });
+  });
+
+  registerRoutes(app);
+
+  app.use(notFoundMiddleware);
+  app.use(errorHandler);
+
+  return app;
+};
