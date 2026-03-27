@@ -10,6 +10,11 @@ class PlansController {
     return sendSuccess(res, HTTP_STATUS.OK, 'Plans fetched successfully', result);
   };
 
+  getPlanById = async (req: Request, res: Response) => {
+    const result = await plansService.getPlanById(req.params.planId);
+    return sendSuccess(res, HTTP_STATUS.OK, 'Plan fetched successfully', result);
+  };
+
   createPlan = async (req: Request, res: Response) => {
     const result = await plansService.createPlan(req.body);
     return sendSuccess(res, HTTP_STATUS.CREATED, 'Plan created successfully', result);
@@ -21,8 +26,8 @@ class PlansController {
   };
 
   deletePlan = async (req: Request, res: Response) => {
-    const result = await plansService.deactivatePlan(req.params.planId);
-    return sendSuccess(res, HTTP_STATUS.OK, 'Plan deactivated successfully', result);
+    const result = await plansService.deletePlan(req.params.planId);
+    return sendSuccess(res, HTTP_STATUS.OK, 'Plan deleted successfully', result);
   };
 }
 

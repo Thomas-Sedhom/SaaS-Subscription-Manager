@@ -56,4 +56,15 @@ export class PlansRepository {
 
     return Promise.resolve(plan);
   }
+
+  delete(id: string) {
+    const index = planStore.findIndex((entry) => entry.id === id);
+
+    if (index === -1) {
+      return Promise.resolve(null);
+    }
+
+    const [deletedPlan] = planStore.splice(index, 1);
+    return Promise.resolve(deletedPlan);
+  }
 }

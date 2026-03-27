@@ -11,6 +11,16 @@ export class PlansService {
     return this.plansRepository.findAll();
   }
 
+  async getPlanById(planId: string) {
+    const plan = await this.plansRepository.findById(planId);
+
+    if (!plan) {
+      throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    return plan;
+  }
+
   async createPlan(payload: CreatePlanDto) {
     const existingPlan = await this.plansRepository.findByName(payload.name);
 
@@ -41,25 +51,29 @@ export class PlansService {
       }
     }
 
-    return this.plansRepository.update(planId, {
+    const updatedPlan = await this.plansRepository.update(planId, {
       name: payload.name,
       price: payload.price,
       billingCycle: payload.billingCycle,
       features: payload.features,
       isActive: payload.isActive
     });
-  }
 
-  async deactivatePlan(planId: string) {
-    const existingPlan = await this.plansRepository.findById(planId);
-
-    if (!existingPlan) {
+    if (!updatedPlan) {
       throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    return this.plansRepository.update(planId, {
-      isActive: false
-    });
+    return updatedPlan;
+  }
+
+  async deletePlan(planId: string) {
+    const deletedPlan = await this.plansRepository.delete(planId);
+
+    if (!deletedPlan) {
+      throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    return deletedPlan;
   }
 }
 
