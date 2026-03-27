@@ -6,14 +6,15 @@ import { AppError } from '../errors/app-error';
 import { jwtService } from '../services/jwt.service';
 
 export const authMiddleware = (req: Request, _res: Response, next: NextFunction): void => {
+  const tokenFromCookie = req.cookies?.accessToken as string | undefined;
   const header = req.headers.authorization;
+  const tokenFromHeader = header?.startsWith('Bearer ') ? header.replace('Bearer ', '') : undefined;
+  const token = tokenFromCookie ?? tokenFromHeader;
 
-  if (!header?.startsWith('Bearer ')) {
+  if (!token) {
     next(new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED));
     return;
   }
-
-  const token = header.replace('Bearer ', '');
 
   try {
     const user = jwtService.verifyToken(token);

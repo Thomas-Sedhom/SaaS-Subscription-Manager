@@ -11,7 +11,7 @@ import type { AuthResponse } from './auth.types';
 export class AuthService {
   constructor(private readonly authRepository: AuthRepository) {}
 
-  async register(payload: RegisterDto): Promise<AuthResponse> {
+  async signup(payload: RegisterDto): Promise<AuthResponse> {
     const existingUser = await this.authRepository.findByEmail(payload.email);
 
     if (existingUser) {

@@ -54,3 +54,10 @@ export const paymentStore: PaymentRecord[] = [];
 export const createId = (prefix: string): string => {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 };
+
+export const resetInMemoryStore = (): void => {
+  userStore.length = 0;
+  planStore.length = 0;
+  subscriptionStore.length = 0;
+  paymentStore.length = 0;
+};

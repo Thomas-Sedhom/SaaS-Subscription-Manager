@@ -8,6 +8,7 @@ import { LoginDto, RegisterDto } from './dto/create-auth.dto';
 
 export const authRouter = Router();
 
-authRouter.post('/register', validateDto(RegisterDto), asyncHandler(authController.register));
+authRouter.post('/signup', validateDto(RegisterDto), asyncHandler(authController.signup));
 authRouter.post('/login', validateDto(LoginDto), asyncHandler(authController.login));
+authRouter.post('/logout', asyncHandler(authController.logout));
 authRouter.get('/me', authMiddleware, asyncHandler(authController.me));
