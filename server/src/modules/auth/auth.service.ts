@@ -1,9 +1,8 @@
 import bcrypt from 'bcrypt';
-import jwt, { type SignOptions } from 'jsonwebtoken';
 
-import { env } from '../../config/env';
 import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { AppError } from '../../shared/errors/app-error';
+import { jwtService } from '../../shared/services/jwt.service';
 import type { AuthenticatedRequestUser } from '../../shared/types/common.types';
 import type { LoginDto, RegisterDto } from './dto/create-auth.dto';
 import { AuthRepository } from './auth.repository';
@@ -66,17 +65,11 @@ export class AuthService {
     email: string;
     role: 'USER' | 'ADMIN';
   }): AuthResponse {
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role
-      },
-      env.JWT_SECRET,
-      {
-        expiresIn: env.JWT_EXPIRES_IN
-      } as SignOptions
-    );
+    const token = jwtService.createJWT({
+      id: user.id,
+      email: user.email,
+      role: user.role
+    });
 
     return {
       user: {

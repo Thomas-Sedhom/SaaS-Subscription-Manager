@@ -1,12 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
 
-import jwt from 'jsonwebtoken';
-
-import { env } from '../../config/env';
 import { HTTP_STATUS } from '../constants/http-status';
 import { MESSAGES } from '../constants/messages';
 import { AppError } from '../errors/app-error';
-import type { AuthenticatedRequestUser } from '../types/common.types';
+import { jwtService } from '../services/jwt.service';
 
 export const authMiddleware = (req: Request, _res: Response, next: NextFunction): void => {
   const header = req.headers.authorization;
@@ -19,10 +16,10 @@ export const authMiddleware = (req: Request, _res: Response, next: NextFunction)
   const token = header.replace('Bearer ', '');
 
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET) as AuthenticatedRequestUser;
-    req.user = decoded;
+    const user = jwtService.verifyToken(token);
+    req.user = user;
     next();
-  } catch {
-    next(new AppError(MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED));
+  } catch (error) {
+    next(error);
   }
 };
