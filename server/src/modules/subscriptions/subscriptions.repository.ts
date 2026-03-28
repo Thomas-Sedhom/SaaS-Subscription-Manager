@@ -1,3 +1,6 @@
+import { prisma } from '../../shared/database/prisma';
+import { mapPlanRecord, mapSubscriptionRecord } from '../../shared/database/prisma-mappers';
+import { useInMemoryDatabase } from '../../config/env';
 import {
   createId,
   paymentStore,
@@ -5,7 +8,7 @@ import {
   subscriptionStore,
   userStore
 } from '../../shared/database/in-memory-store';
-import type { BillingCycle, SubscriptionStatus } from '../../shared/database/in-memory-store';
+import type { SubscriptionStatus } from '../../shared/database/in-memory-store';
 
 interface CreateSubscriptionInput {
   userId: string;
@@ -23,8 +26,22 @@ interface UpdateSubscriptionInput {
   cancelAtPeriodEnd?: boolean;
 }
 
+const subscriptionInclude = {
+  user: true,
+  plan: {
+    include: {
+      planFeatures: {
+        include: {
+          feature: true
+        }
+      }
+    }
+  },
+  payments: true
+} as const;
+
 export class SubscriptionsRepository {
-  private mapSubscription(subscription: (typeof subscriptionStore)[number]) {
+  private mapInMemorySubscription(subscription: (typeof subscriptionStore)[number]) {
     return {
       ...subscription,
       user: userStore.find((user) => user.id === subscription.userId) ?? null,
@@ -33,64 +50,138 @@ export class SubscriptionsRepository {
     };
   }
 
-  findById(id: string) {
-    const subscription = subscriptionStore.find((entry) => entry.id === id) ?? null;
-    return Promise.resolve(subscription ? this.mapSubscription(subscription) : null);
+  async findById(id: string) {
+    if (useInMemoryDatabase) {
+      const subscription = subscriptionStore.find((entry) => entry.id === id) ?? null;
+      return subscription ? this.mapInMemorySubscription(subscription) : null;
+    }
+
+    const subscription = await prisma!.subscription.findUnique({
+      where: { id },
+      include: subscriptionInclude
+    });
+
+    return subscription ? mapSubscriptionRecord(subscription) : null;
   }
 
-  findByUserId(userId: string) {
-    return Promise.resolve(
-      subscriptionStore
+  async findByUserId(userId: string) {
+    if (useInMemoryDatabase) {
+      return subscriptionStore
         .filter((subscription) => subscription.userId === userId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .map((subscription) => this.mapSubscription(subscription))
-    );
+        .map((subscription) => this.mapInMemorySubscription(subscription));
+    }
+
+    const subscriptions = await prisma!.subscription.findMany({
+      where: { userId },
+      include: subscriptionInclude,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return subscriptions.map((subscription) => mapSubscriptionRecord(subscription));
   }
 
-  findCurrentByUserId(userId: string) {
-    const subscription =
-      subscriptionStore
-        .filter(
-          (item) => item.userId === userId && (item.status === 'ACTIVE' || item.status === 'PENDING')
-        )
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
+  async findCurrentByUserId(userId: string) {
+    if (useInMemoryDatabase) {
+      const subscription =
+        subscriptionStore
+          .filter(
+            (item) => item.userId === userId && (item.status === 'ACTIVE' || item.status === 'PENDING')
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
 
-    return Promise.resolve(subscription ? this.mapSubscription(subscription) : null);
+      return subscription ? this.mapInMemorySubscription(subscription) : null;
+    }
+
+    const subscription = await prisma!.subscription.findFirst({
+      where: {
+        userId,
+        status: {
+          in: ['ACTIVE', 'PENDING']
+        }
+      },
+      include: subscriptionInclude,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return subscription ? mapSubscriptionRecord(subscription) : null;
   }
 
-  findPlanById(planId: string) {
-    return Promise.resolve(planStore.find((plan) => plan.id === planId) ?? null);
+  async findPlanById(planId: string) {
+    if (useInMemoryDatabase) {
+      return planStore.find((plan) => plan.id === planId) ?? null;
+    }
+
+    const plan = await prisma!.plan.findUnique({
+      where: { id: planId },
+      include: {
+        planFeatures: {
+          include: {
+            feature: true
+          }
+        }
+      }
+    });
+
+    return plan ? mapPlanRecord(plan) : null;
   }
 
-  create(data: CreateSubscriptionInput) {
-    const now = new Date();
-    const subscription = {
-      id: createId('subscription'),
-      userId: data.userId,
-      planId: data.planId,
-      status: data.status,
-      startDate: null,
-      endDate: null,
-      currentPeriodStart: null,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-      createdAt: now,
-      updatedAt: now
-    };
+  async create(data: CreateSubscriptionInput) {
+    if (useInMemoryDatabase) {
+      const now = new Date();
+      const subscription = {
+        id: createId('subscription'),
+        userId: data.userId,
+        planId: data.planId,
+        status: data.status,
+        startDate: null,
+        endDate: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        createdAt: now,
+        updatedAt: now
+      };
 
-    subscriptionStore.push(subscription);
+      subscriptionStore.push(subscription);
+      return this.findById(subscription.id);
+    }
+
+    const subscription = await prisma!.subscription.create({
+      data: {
+        userId: data.userId,
+        planId: data.planId,
+        status: data.status
+      }
+    });
+
     return this.findById(subscription.id);
   }
 
-  update(id: string, data: UpdateSubscriptionInput) {
-    const subscription = subscriptionStore.find((entry) => entry.id === id);
+  async update(id: string, data: UpdateSubscriptionInput) {
+    if (useInMemoryDatabase) {
+      const subscription = subscriptionStore.find((entry) => entry.id === id);
 
-    if (!subscription) {
-      return Promise.resolve(null);
+      if (!subscription) {
+        return null;
+      }
+
+      Object.assign(subscription, data, {
+        updatedAt: new Date()
+      });
+
+      return this.findById(id);
     }
 
-    Object.assign(subscription, data, {
-      updatedAt: new Date()
+    const existingSubscription = await prisma!.subscription.findUnique({ where: { id } });
+
+    if (!existingSubscription) {
+      return null;
+    }
+
+    await prisma!.subscription.update({
+      where: { id },
+      data
     });
 
     return this.findById(id);

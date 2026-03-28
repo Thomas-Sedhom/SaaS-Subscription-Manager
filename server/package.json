@@ -11,9 +11,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prisma:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^6.6.0",
     "@types/cookie-parser": "^1.4.10",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
@@ -40,6 +44,7 @@
     "eslint": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
     "prettier": "^3.5.3",
+    "prisma": "^6.6.0",
     "supertest": "^7.1.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",

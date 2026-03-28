@@ -1,3 +1,6 @@
+import { prisma } from '../../shared/database/prisma';
+import { mapPaymentMethodRecord } from '../../shared/database/prisma-mappers';
+import { useInMemoryDatabase } from '../../config/env';
 import { createId, paymentMethodStore } from '../../shared/database/in-memory-store';
 import type { PaymentMethodRecord } from '../../shared/database/in-memory-store';
 
@@ -17,63 +20,134 @@ interface UpdatePaymentMethodInput {
 }
 
 export class PaymentMethodsRepository {
-  findByUserId(userId: string) {
-    return Promise.resolve(
-      paymentMethodStore
+  async findByUserId(userId: string) {
+    if (useInMemoryDatabase) {
+      return paymentMethodStore
         .filter((method) => method.userId === userId)
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    );
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+
+    const paymentMethods = await prisma!.paymentMethod.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return paymentMethods.map((paymentMethod) => mapPaymentMethodRecord(paymentMethod));
   }
 
-  findById(paymentMethodId: string) {
-    return Promise.resolve(paymentMethodStore.find((method) => method.id === paymentMethodId) ?? null);
+  async findById(paymentMethodId: string) {
+    if (useInMemoryDatabase) {
+      return paymentMethodStore.find((method) => method.id === paymentMethodId) ?? null;
+    }
+
+    const paymentMethod = await prisma!.paymentMethod.findUnique({ where: { id: paymentMethodId } });
+    return paymentMethod ? mapPaymentMethodRecord(paymentMethod) : null;
   }
 
-  findDefaultByUserId(userId: string) {
-    return Promise.resolve(
-      paymentMethodStore.find((method) => method.userId === userId && method.isDefault && method.isActive) ?? null
-    );
+  async findDefaultByUserId(userId: string) {
+    if (useInMemoryDatabase) {
+      return (
+        paymentMethodStore.find((method) => method.userId === userId && method.isDefault && method.isActive) ??
+        null
+      );
+    }
+
+    const paymentMethod = await prisma!.paymentMethod.findFirst({
+      where: {
+        userId,
+        isDefault: true,
+        isActive: true
+      }
+    });
+
+    return paymentMethod ? mapPaymentMethodRecord(paymentMethod) : null;
   }
 
   async clearDefaultForUser(userId: string) {
-    paymentMethodStore.forEach((method) => {
-      if (method.userId === userId && method.isDefault) {
-        method.isDefault = false;
-        method.updatedAt = new Date();
+    if (useInMemoryDatabase) {
+      paymentMethodStore.forEach((method) => {
+        if (method.userId === userId && method.isDefault) {
+          method.isDefault = false;
+          method.updatedAt = new Date();
+        }
+      });
+      return;
+    }
+
+    await prisma!.paymentMethod.updateMany({
+      where: {
+        userId,
+        isDefault: true
+      },
+      data: {
+        isDefault: false
       }
     });
   }
 
-  create(data: CreatePaymentMethodInput) {
-    const now = new Date();
-    const paymentMethod: PaymentMethodRecord = {
-      id: createId('payment_method'),
-      userId: data.userId,
-      methodType: data.methodType,
-      methodDetails: data.methodDetails,
-      isDefault: data.isDefault,
-      last4: data.last4,
-      brand: data.brand,
-      isActive: data.isActive,
-      createdAt: now,
-      updatedAt: now
-    };
+  async create(data: CreatePaymentMethodInput) {
+    if (useInMemoryDatabase) {
+      const now = new Date();
+      const paymentMethod: PaymentMethodRecord = {
+        id: createId('payment_method'),
+        userId: data.userId,
+        methodType: data.methodType,
+        methodDetails: data.methodDetails,
+        isDefault: data.isDefault,
+        last4: data.last4,
+        brand: data.brand,
+        isActive: data.isActive,
+        createdAt: now,
+        updatedAt: now
+      };
 
-    paymentMethodStore.push(paymentMethod);
-    return Promise.resolve(paymentMethod);
-  }
-
-  update(paymentMethodId: string, data: UpdatePaymentMethodInput) {
-    const paymentMethod = paymentMethodStore.find((method) => method.id === paymentMethodId);
-
-    if (!paymentMethod) {
-      return Promise.resolve(null);
+      paymentMethodStore.push(paymentMethod);
+      return paymentMethod;
     }
 
-    Object.assign(paymentMethod, data, {
-      updatedAt: new Date()
+    const paymentMethod = await prisma!.paymentMethod.create({
+      data: {
+        userId: data.userId,
+        methodType: data.methodType,
+        methodDetails: data.methodDetails,
+        isDefault: data.isDefault,
+        last4: data.last4,
+        brand: data.brand,
+        isActive: data.isActive
+      }
     });
 
-    return Promise.resolve(paymentMethod);
+    return mapPaymentMethodRecord(paymentMethod);
+  }
+
+  async update(paymentMethodId: string, data: UpdatePaymentMethodInput) {
+    if (useInMemoryDatabase) {
+      const paymentMethod = paymentMethodStore.find((method) => method.id === paymentMethodId);
+
+      if (!paymentMethod) {
+        return null;
+      }
+
+      Object.assign(paymentMethod, data, {
+        updatedAt: new Date()
+      });
+
+      return paymentMethod;
+    }
+
+    const existingPaymentMethod = await prisma!.paymentMethod.findUnique({
+      where: { id: paymentMethodId }
+    });
+
+    if (!existingPaymentMethod) {
+      return null;
+    }
+
+    const paymentMethod = await prisma!.paymentMethod.update({
+      where: { id: paymentMethodId },
+      data
+    });
+
+    return mapPaymentMethodRecord(paymentMethod);
   }
 }
