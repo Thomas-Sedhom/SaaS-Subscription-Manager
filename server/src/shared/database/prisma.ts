@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
-import { useInMemoryDatabase } from '../../config/env';
+import { env } from '../../config/env';
+import { prismaMock } from '../../tests/utils/prisma-mock';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -9,13 +10,14 @@ declare global {
 
 const createPrismaClient = () =>
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
+    log: env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
   });
 
-export const prisma = useInMemoryDatabase
-  ? null
-  : global.__prisma__ ?? createPrismaClient();
+export const prisma =
+  env.NODE_ENV === 'test'
+    ? prismaMock
+    : global.__prisma__ ?? createPrismaClient();
 
-if (!useInMemoryDatabase) {
-  global.__prisma__ = prisma ?? undefined;
+if (env.NODE_ENV !== 'test') {
+  global.__prisma__ = prisma;
 }

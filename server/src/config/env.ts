@@ -32,9 +32,8 @@ export const env = {
   NODE_ENV: nodeEnv,
   PORT: Number(withDefault(process.env.PORT, '5000')),
   DATABASE_URL: requireRuntimeValue(process.env.DATABASE_URL, 'DATABASE_URL'),
+  DIRECT_URL: withDefault(process.env.DIRECT_URL, ''),
   JWT_SECRET: withDefault(process.env.JWT_SECRET, 'development_jwt_secret'),
   JWT_EXPIRES_IN: withDefault(process.env.JWT_EXPIRES_IN, '7d'),
   CORS_ORIGIN: withDefault(process.env.CORS_ORIGIN, 'http://localhost:3000')
 } as const;
-
-export const useInMemoryDatabase = env.NODE_ENV === 'test';

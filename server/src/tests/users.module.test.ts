@@ -1,15 +1,13 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
-import { resetInMemoryStore, userStore } from '../shared/database/in-memory-store';
 import { jwtService } from '../shared/services/jwt.service';
+import { seedUsers } from './utils/prisma-mock';
 
 describe('users module', () => {
-  beforeEach(() => {
-    resetInMemoryStore();
-
-    userStore.push(
+  it('allows only admin to get all users and get a user by id', async () => {
+    seedUsers(
       {
         id: 'admin_1',
         name: 'Admin User',
@@ -29,9 +27,7 @@ describe('users module', () => {
         updatedAt: new Date()
       }
     );
-  });
 
-  it('allows only admin to get all users and get a user by id', async () => {
     const adminToken = jwtService.createJWT({
       id: 'admin_1',
       email: 'admin@example.com',
@@ -69,6 +65,27 @@ describe('users module', () => {
   });
 
   it('gets and updates the current user profile from the JWT cookie', async () => {
+    seedUsers(
+      {
+        id: 'admin_1',
+        name: 'Admin User',
+        email: 'admin@example.com',
+        passwordHash: 'hashed-admin',
+        role: 'ADMIN',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'user_1',
+        name: 'Normal User',
+        email: 'user@example.com',
+        passwordHash: 'hashed-user',
+        role: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    );
+
     const userToken = jwtService.createJWT({
       id: 'user_1',
       email: 'user@example.com',

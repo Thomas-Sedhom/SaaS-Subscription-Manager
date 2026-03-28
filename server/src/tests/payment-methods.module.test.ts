@@ -1,15 +1,13 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
-import { paymentMethodStore, resetInMemoryStore, userStore } from '../shared/database/in-memory-store';
 import { jwtService } from '../shared/services/jwt.service';
+import { prismaMockState, seedPaymentMethods, seedUsers } from './utils/prisma-mock';
 
 describe('payment methods module', () => {
-  beforeEach(() => {
-    resetInMemoryStore();
-
-    userStore.push({
+  it('creates and lists payment methods for the authenticated user', async () => {
+    seedUsers({
       id: 'user_1',
       name: 'Normal User',
       email: 'user@example.com',
@@ -18,9 +16,7 @@ describe('payment methods module', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-  });
 
-  it('creates and lists payment methods for the authenticated user', async () => {
     const userToken = jwtService.createJWT({
       id: 'user_1',
       email: 'user@example.com',
@@ -51,13 +47,17 @@ describe('payment methods module', () => {
   });
 
   it('sets one payment method as default for the authenticated user', async () => {
-    const userToken = jwtService.createJWT({
+    seedUsers({
       id: 'user_1',
+      name: 'Normal User',
       email: 'user@example.com',
-      role: 'USER'
+      passwordHash: 'hashed',
+      role: 'USER',
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
-    paymentMethodStore.push(
+    seedPaymentMethods(
       {
         id: 'pm_1',
         userId: 'user_1',
@@ -84,13 +84,19 @@ describe('payment methods module', () => {
       }
     );
 
+    const userToken = jwtService.createJWT({
+      id: 'user_1',
+      email: 'user@example.com',
+      role: 'USER'
+    });
+
     const app = createApp();
     const response = await request(app)
       .patch('/api/v1/payment-methods/pm_2/default')
       .set('Cookie', [`accessToken=${userToken}`]);
 
     expect(response.status).toBe(200);
-    expect(paymentMethodStore.find((method) => method.id === 'pm_1')?.isDefault).toBe(false);
-    expect(paymentMethodStore.find((method) => method.id === 'pm_2')?.isDefault).toBe(true);
+    expect(prismaMockState.paymentMethods.find((method) => method.id === 'pm_1')?.isDefault).toBe(false);
+    expect(prismaMockState.paymentMethods.find((method) => method.id === 'pm_2')?.isDefault).toBe(true);
   });
 });

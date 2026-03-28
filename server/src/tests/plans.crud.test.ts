@@ -1,21 +1,19 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
-import {
-  paymentMethodStore,
-  planStore,
-  resetInMemoryStore,
-  subscriptionStore,
-  userStore
-} from '../shared/database/in-memory-store';
 import { jwtService } from '../shared/services/jwt.service';
+import {
+  prismaMockState,
+  seedPaymentMethods,
+  seedPlans,
+  seedSubscriptions,
+  seedUsers
+} from './utils/prisma-mock';
 
 describe('plans module', () => {
-  beforeEach(() => {
-    resetInMemoryStore();
-
-    userStore.push(
+  it('allows any authenticated role to get plans', async () => {
+    seedUsers(
       {
         id: 'admin_1',
         name: 'Admin User',
@@ -36,7 +34,7 @@ describe('plans module', () => {
       }
     );
 
-    planStore.push({
+    seedPlans({
       id: 'plan_1',
       name: 'Starter',
       price: 19.99,
@@ -46,9 +44,7 @@ describe('plans module', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-  });
 
-  it('allows any authenticated role to get plans', async () => {
     const userToken = jwtService.createJWT({
       id: 'user_1',
       email: 'user@example.com',
@@ -70,6 +66,38 @@ describe('plans module', () => {
   });
 
   it('allows only admins to create, update, and delete plans', async () => {
+    seedUsers(
+      {
+        id: 'admin_1',
+        name: 'Admin User',
+        email: 'admin@example.com',
+        passwordHash: 'hashed',
+        role: 'ADMIN',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'user_1',
+        name: 'Normal User',
+        email: 'user@example.com',
+        passwordHash: 'hashed',
+        role: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    );
+
+    seedPlans({
+      id: 'plan_1',
+      name: 'Starter',
+      price: 19.99,
+      billingCycle: 'MONTHLY',
+      features: ['basic'],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
     const adminToken = jwtService.createJWT({
       id: 'admin_1',
       email: 'admin@example.com',
@@ -131,13 +159,39 @@ describe('plans module', () => {
   });
 
   it('rejects deleting a plan that is used by an active subscription', async () => {
-    const adminToken = jwtService.createJWT({
-      id: 'admin_1',
-      email: 'admin@example.com',
-      role: 'ADMIN'
+    seedUsers(
+      {
+        id: 'admin_1',
+        name: 'Admin User',
+        email: 'admin@example.com',
+        passwordHash: 'hashed',
+        role: 'ADMIN',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'user_1',
+        name: 'Normal User',
+        email: 'user@example.com',
+        passwordHash: 'hashed',
+        role: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    );
+
+    seedPlans({
+      id: 'plan_1',
+      name: 'Starter',
+      price: 19.99,
+      billingCycle: 'MONTHLY',
+      features: ['basic'],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
 
-    paymentMethodStore.push({
+    seedPaymentMethods({
       id: 'pm_1',
       userId: 'user_1',
       methodType: 'card',
@@ -150,7 +204,7 @@ describe('plans module', () => {
       updatedAt: new Date()
     });
 
-    subscriptionStore.push({
+    seedSubscriptions({
       id: 'subscription_1',
       userId: 'user_1',
       planId: 'plan_1',
@@ -164,11 +218,18 @@ describe('plans module', () => {
       updatedAt: new Date()
     });
 
+    const adminToken = jwtService.createJWT({
+      id: 'admin_1',
+      email: 'admin@example.com',
+      role: 'ADMIN'
+    });
+
     const app = createApp();
     const deleteResponse = await request(app)
       .delete('/api/v1/plans/plan_1')
       .set('Cookie', [`accessToken=${adminToken}`]);
 
     expect(deleteResponse.status).toBe(400);
+    expect(prismaMockState.subscriptions).toHaveLength(1);
   });
 });

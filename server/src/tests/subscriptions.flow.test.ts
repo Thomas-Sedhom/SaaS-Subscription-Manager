@@ -1,21 +1,19 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
-import {
-  paymentMethodStore,
-  planStore,
-  resetInMemoryStore,
-  subscriptionStore,
-  userStore
-} from '../shared/database/in-memory-store';
 import { jwtService } from '../shared/services/jwt.service';
+import {
+  prismaMockState,
+  seedPaymentMethods,
+  seedPlans,
+  seedSubscriptions,
+  seedUsers
+} from './utils/prisma-mock';
 
 describe('subscription and payment flow', () => {
-  beforeEach(() => {
-    resetInMemoryStore();
-
-    userStore.push(
+  const seedBaseData = () => {
+    seedUsers(
       {
         id: 'user_1',
         name: 'Normal User',
@@ -36,7 +34,7 @@ describe('subscription and payment flow', () => {
       }
     );
 
-    planStore.push(
+    seedPlans(
       {
         id: 'plan_basic',
         name: 'Basic',
@@ -69,7 +67,7 @@ describe('subscription and payment flow', () => {
       }
     );
 
-    paymentMethodStore.push(
+    seedPaymentMethods(
       {
         id: 'pm_user_1',
         userId: 'user_1',
@@ -95,23 +93,17 @@ describe('subscription and payment flow', () => {
         updatedAt: new Date()
       }
     );
-  });
+  };
 
   it('creates a subscription and activates it after mock payment success', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
+    seedBaseData();
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
 
     const app = createApp();
     const response = await request(app)
       .post('/api/v1/subscriptions')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        planId: 'plan_basic',
-        paymentMethodId: 'pm_user_1'
-      });
+      .send({ planId: 'plan_basic', paymentMethodId: 'pm_user_1' });
 
     expect(response.status).toBe(201);
     expect(response.body.data.subscription.status).toBe('ACTIVE');
@@ -119,32 +111,21 @@ describe('subscription and payment flow', () => {
   });
 
   it('fails when the selected plan is inactive', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
+    seedBaseData();
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
 
     const app = createApp();
     const response = await request(app)
       .post('/api/v1/subscriptions')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        planId: 'plan_inactive',
-        paymentMethodId: 'pm_user_1'
-      });
+      .send({ planId: 'plan_inactive', paymentMethodId: 'pm_user_1' });
 
     expect(response.status).toBe(400);
   });
 
   it('fails when the user already has an active or pending subscription', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
-
-    subscriptionStore.push({
+    seedBaseData();
+    seedSubscriptions({
       id: 'subscription_existing',
       userId: 'user_1',
       planId: 'plan_basic',
@@ -158,26 +139,20 @@ describe('subscription and payment flow', () => {
       updatedAt: new Date()
     });
 
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
+
     const app = createApp();
     const response = await request(app)
       .post('/api/v1/subscriptions')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        planId: 'plan_pro',
-        paymentMethodId: 'pm_user_1'
-      });
+      .send({ planId: 'plan_pro', paymentMethodId: 'pm_user_1' });
 
     expect(response.status).toBe(400);
   });
 
   it('changes plan for the authenticated owner and keeps the subscription active', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
-
-    subscriptionStore.push({
+    seedBaseData();
+    seedSubscriptions({
       id: 'subscription_1',
       userId: 'user_1',
       planId: 'plan_basic',
@@ -191,14 +166,13 @@ describe('subscription and payment flow', () => {
       updatedAt: new Date()
     });
 
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
+
     const app = createApp();
     const response = await request(app)
       .post('/api/v1/subscriptions/subscription_1/change-plan')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        newPlanId: 'plan_pro',
-        paymentMethodId: 'pm_user_1'
-      });
+      .send({ newPlanId: 'plan_pro', paymentMethodId: 'pm_user_1' });
 
     expect(response.status).toBe(200);
     expect(response.body.data.subscription.planId).toBe('plan_pro');
@@ -207,13 +181,8 @@ describe('subscription and payment flow', () => {
   });
 
   it('keeps the current subscription unchanged when mock payment fails during plan change', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
-
-    subscriptionStore.push({
+    seedBaseData();
+    seedSubscriptions({
       id: 'subscription_1',
       userId: 'user_1',
       planId: 'plan_basic',
@@ -227,48 +196,35 @@ describe('subscription and payment flow', () => {
       updatedAt: new Date()
     });
 
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
+
     const app = createApp();
     const response = await request(app)
       .post('/api/v1/subscriptions/subscription_1/change-plan')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        newPlanId: 'plan_pro',
-        paymentMethodId: 'pm_user_1',
-        simulateFailure: true
-      });
+      .send({ newPlanId: 'plan_pro', paymentMethodId: 'pm_user_1', simulateFailure: true });
 
     expect(response.status).toBe(400);
-    expect(subscriptionStore.find((subscription) => subscription.id === 'subscription_1')?.planId).toBe('plan_basic');
-    expect(subscriptionStore.find((subscription) => subscription.id === 'subscription_1')?.status).toBe('ACTIVE');
+    expect(prismaMockState.subscriptions.find((subscription) => subscription.id === 'subscription_1')?.planId).toBe('plan_basic');
+    expect(prismaMockState.subscriptions.find((subscription) => subscription.id === 'subscription_1')?.status).toBe('ACTIVE');
   });
 
   it('rejects using a payment method that belongs to another user', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
+    seedBaseData();
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
 
     const app = createApp();
     const response = await request(app)
       .post('/api/v1/subscriptions')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        planId: 'plan_basic',
-        paymentMethodId: 'pm_user_2'
-      });
+      .send({ planId: 'plan_basic', paymentMethodId: 'pm_user_2' });
 
     expect(response.status).toBe(404);
   });
 
   it('lists only the authenticated user payment history', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
-
-    subscriptionStore.push(
+    seedBaseData();
+    seedSubscriptions(
       {
         id: 'subscription_1',
         userId: 'user_1',
@@ -297,14 +253,13 @@ describe('subscription and payment flow', () => {
       }
     );
 
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
+
     const app = createApp();
     await request(app)
       .post('/api/v1/subscriptions/subscription_1/change-plan')
       .set('Cookie', [`accessToken=${userToken}`])
-      .send({
-        newPlanId: 'plan_pro',
-        paymentMethodId: 'pm_user_1'
-      });
+      .send({ newPlanId: 'plan_pro', paymentMethodId: 'pm_user_1' });
 
     const paymentsResponse = await request(app)
       .get('/api/v1/payments/me')
@@ -316,13 +271,8 @@ describe('subscription and payment flow', () => {
   });
 
   it('returns only the authenticated user subscriptions in /subscriptions/me', async () => {
-    const userToken = jwtService.createJWT({
-      id: 'user_1',
-      email: 'user@example.com',
-      role: 'USER'
-    });
-
-    subscriptionStore.push(
+    seedBaseData();
+    seedSubscriptions(
       {
         id: 'subscription_1',
         userId: 'user_1',
@@ -350,6 +300,8 @@ describe('subscription and payment flow', () => {
         updatedAt: new Date()
       }
     );
+
+    const userToken = jwtService.createJWT({ id: 'user_1', email: 'user@example.com', role: 'USER' });
 
     const app = createApp();
     const response = await request(app)

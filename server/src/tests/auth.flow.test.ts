@@ -1,14 +1,9 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
-import { resetInMemoryStore } from '../shared/database/in-memory-store';
 
 describe('auth module', () => {
-  beforeEach(() => {
-    resetInMemoryStore();
-  });
-
   it('signs up a user, stores a jwt cookie, and returns the token', async () => {
     const app = createApp();
 

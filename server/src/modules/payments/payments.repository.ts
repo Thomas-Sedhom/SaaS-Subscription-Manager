@@ -1,14 +1,9 @@
 import { prisma } from '../../shared/database/prisma';
-import { mapPaymentMethodRecord, mapPaymentRecord, mapSubscriptionRecord } from '../../shared/database/prisma-mappers';
-import { useInMemoryDatabase } from '../../config/env';
 import {
-  createId,
-  paymentMethodStore,
-  paymentStore,
-  planStore,
-  subscriptionStore
-} from '../../shared/database/in-memory-store';
-import type { PaymentRecord, PaymentStatus, PaymentType } from '../../shared/database/in-memory-store';
+  mapPaymentMethodRecord,
+  mapPaymentRecord,
+  mapSubscriptionRecord
+} from '../../shared/database/prisma-mappers';
 
 interface CreatePaymentInput {
   subscriptionId: string;
@@ -16,14 +11,14 @@ interface CreatePaymentInput {
   amount: number;
   currency: string;
   provider: string;
-  status: PaymentStatus;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
   failureReason: string | null;
-  type: PaymentType;
+  type: 'SUBSCRIPTION_CREATE' | 'PLAN_CHANGE';
   targetPlanId: string | null;
 }
 
 interface UpdatePaymentInput {
-  status?: PaymentStatus;
+  status?: 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
   failureReason?: string | null;
 }
 
@@ -46,25 +41,8 @@ const paymentInclude = {
 } as const;
 
 export class PaymentsRepository {
-  private mapInMemoryPayment(payment: PaymentRecord) {
-    return {
-      ...payment,
-      subscription: subscriptionStore.find((subscription) => subscription.id === payment.subscriptionId) ?? null,
-      paymentMethod:
-        paymentMethodStore.find((paymentMethod) => paymentMethod.id === payment.paymentMethodId) ?? null,
-      targetPlan: planStore.find((plan) => plan.id === payment.targetPlanId) ?? null,
-      brand:
-        paymentMethodStore.find((paymentMethod) => paymentMethod.id === payment.paymentMethodId)?.brand ?? null
-    };
-  }
-
   async findById(id: string) {
-    if (useInMemoryDatabase) {
-      const payment = paymentStore.find((entry) => entry.id === id) ?? null;
-      return payment ? this.mapInMemoryPayment(payment) : null;
-    }
-
-    const payment = await prisma!.payment.findUnique({
+    const payment = await prisma.payment.findUnique({
       where: { id },
       include: paymentInclude
     });
@@ -82,14 +60,7 @@ export class PaymentsRepository {
   }
 
   async findBySubscriptionId(subscriptionId: string) {
-    if (useInMemoryDatabase) {
-      return paymentStore
-        .filter((payment) => payment.subscriptionId === subscriptionId)
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .map((payment) => this.mapInMemoryPayment(payment));
-    }
-
-    const payments = await prisma!.payment.findMany({
+    const payments = await prisma.payment.findMany({
       where: { subscriptionId },
       include: paymentInclude,
       orderBy: { createdAt: 'desc' }
@@ -104,18 +75,7 @@ export class PaymentsRepository {
   }
 
   async findByUserId(userId: string) {
-    if (useInMemoryDatabase) {
-      const subscriptionIds = subscriptionStore
-        .filter((subscription) => subscription.userId === userId)
-        .map((subscription) => subscription.id);
-
-      return paymentStore
-        .filter((payment) => subscriptionIds.includes(payment.subscriptionId))
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .map((payment) => this.mapInMemoryPayment(payment));
-    }
-
-    const payments = await prisma!.payment.findMany({
+    const payments = await prisma.payment.findMany({
       where: {
         subscription: {
           userId
@@ -134,28 +94,7 @@ export class PaymentsRepository {
   }
 
   async create(data: CreatePaymentInput) {
-    if (useInMemoryDatabase) {
-      const now = new Date();
-      const payment: PaymentRecord = {
-        id: createId('payment'),
-        subscriptionId: data.subscriptionId,
-        paymentMethodId: data.paymentMethodId,
-        amount: data.amount,
-        currency: data.currency,
-        provider: data.provider,
-        status: data.status,
-        failureReason: data.failureReason,
-        type: data.type,
-        targetPlanId: data.targetPlanId,
-        createdAt: now,
-        updatedAt: now
-      };
-
-      paymentStore.push(payment);
-      return this.findById(payment.id);
-    }
-
-    const payment = await prisma!.payment.create({
+    const payment = await prisma.payment.create({
       data: {
         subscriptionId: data.subscriptionId,
         paymentMethodId: data.paymentMethodId,
@@ -173,27 +112,13 @@ export class PaymentsRepository {
   }
 
   async update(id: string, data: UpdatePaymentInput) {
-    if (useInMemoryDatabase) {
-      const payment = paymentStore.find((entry) => entry.id === id);
-
-      if (!payment) {
-        return null;
-      }
-
-      Object.assign(payment, data, {
-        updatedAt: new Date()
-      });
-
-      return this.findById(id);
-    }
-
-    const existingPayment = await prisma!.payment.findUnique({ where: { id } });
+    const existingPayment = await prisma.payment.findUnique({ where: { id } });
 
     if (!existingPayment) {
       return null;
     }
 
-    await prisma!.payment.update({
+    await prisma.payment.update({
       where: { id },
       data
     });
