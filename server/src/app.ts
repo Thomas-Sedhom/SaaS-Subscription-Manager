@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import morgan from 'morgan';
 
 import { appConfig } from './config/app.config';
 import { env } from './config/env';
@@ -24,7 +23,6 @@ export const createApp = () => {
   );
   app.use(express.json());
   app.use(cookieParser());
-  app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
   app.get('/', (_req, res) => {
     res.status(200).json({

@@ -29,12 +29,9 @@ const startServer = async () => {
     void shutdown();
   });
 
-  server.listen(env.PORT, () => {
-    console.log(`Server listening on port ${env.PORT}`);
-  });
+  server.listen(env.PORT);
 };
 
-startServer().catch((error) => {
-  console.error('Failed to start server', error);
+startServer().catch(() => {
   process.exit(1);
 });

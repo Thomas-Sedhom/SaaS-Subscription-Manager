@@ -3,6 +3,9 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../features/authentication';
 import Button from '../components/Button';
 
+const getNavLinkClassName = ({ isActive }: { isActive: boolean }) =>
+  `topbar__link ${isActive ? 'topbar__link--active' : ''}`.trim();
+
 export default function AppShell() {
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -17,17 +20,17 @@ export default function AppShell() {
         </div>
 
         <nav className="topbar__nav">
-          <NavLink to="/plans">Plans</NavLink>
-          {isAuthenticated ? <NavLink to="/subscription">Subscription</NavLink> : null}
-          {isAuthenticated ? <NavLink to="/profile">Profile</NavLink> : null}
-          {user?.role === 'ADMIN' ? <NavLink to="/admin">Admin</NavLink> : null}
+          <NavLink className={getNavLinkClassName} to="/plans">Plans</NavLink>
+          {isAuthenticated ? <NavLink className={getNavLinkClassName} to="/subscription">Subscription</NavLink> : null}
+          {isAuthenticated ? <NavLink className={getNavLinkClassName} to="/profile">Profile</NavLink> : null}
+          {user?.role === 'ADMIN' ? <NavLink className={getNavLinkClassName} to="/admin">Admin</NavLink> : null}
           {isAuthenticated ? (
             <Button variant="ghost" onClick={logout}>
               Logout
             </Button>
           ) : (
             <>
-              <NavLink to="/login">Login</NavLink>
+              <NavLink className={getNavLinkClassName} to="/login">Login</NavLink>
               <Button onClick={() => (window.location.href = '/signup')}>Get Started</Button>
             </>
           )}

@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
 import { env } from '../../config/env';
-import { prismaMock } from '../../tests/utils/prisma-mock';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -13,11 +12,6 @@ const createPrismaClient = () =>
     log: env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
   });
 
-export const prisma =
-  env.NODE_ENV === 'test'
-    ? prismaMock
-    : global.__prisma__ ?? createPrismaClient();
+export const prisma = global.__prisma__ ?? createPrismaClient();
 
-if (env.NODE_ENV !== 'test') {
-  global.__prisma__ = prisma;
-}
+global.__prisma__ = prisma;
