@@ -6,7 +6,7 @@ import type { AuthenticatedRequestUser } from '../../shared/types/common.types';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 import { UsersRepository } from './users.repository';
-import type { UserResponse } from './users.types';
+import type { UserDetailResponse, UserResponse, UserSubscriptionResponse } from './users.types';
 
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
@@ -16,14 +16,17 @@ export class UsersService {
     return users.map((user) => this.toUserResponse(user));
   }
 
-  async getUserById(userId: string): Promise<UserResponse> {
-    const user = await this.usersRepository.findById(userId);
+  async getUserById(userId: string): Promise<UserDetailResponse> {
+    const user = await this.usersRepository.findByIdWithSubscriptions(userId);
 
     if (!user) {
       throw new AppError('User not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    return this.toUserResponse(user);
+    return {
+      ...this.toUserResponse(user),
+      subscriptions: user.subscriptions.map((subscription) => this.toUserSubscriptionResponse(subscription))
+    };
   }
 
   async createUser(payload: CreateUserDto): Promise<UserResponse> {
@@ -110,6 +113,53 @@ export class UsersService {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
+    };
+  }
+
+  private toUserSubscriptionResponse(subscription: {
+    id: string;
+    planId: string;
+    status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELED';
+    startDate: Date | null;
+    endDate: Date | null;
+    currentPeriodStart: Date | null;
+    currentPeriodEnd: Date | null;
+    cancelAtPeriodEnd: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    plan: {
+      id: string;
+      name: string;
+      price: { toNumber(): number } | number;
+      billingCycle: 'MONTHLY' | 'YEARLY';
+      isActive: boolean;
+      planFeatures: Array<{ feature: { content: string } }>;
+    } | null;
+  }): UserSubscriptionResponse {
+    return {
+      id: subscription.id,
+      planId: subscription.planId,
+      status: subscription.status,
+      startDate: subscription.startDate,
+      endDate: subscription.endDate,
+      currentPeriodStart: subscription.currentPeriodStart,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      createdAt: subscription.createdAt,
+      updatedAt: subscription.updatedAt,
+      plan: subscription.plan
+        ? {
+            id: subscription.plan.id,
+            name: subscription.plan.name,
+            price:
+              typeof subscription.plan.price === 'number'
+                ? subscription.plan.price
+                : subscription.plan.price.toNumber(),
+            billingCycle: subscription.plan.billingCycle,
+            features: subscription.plan.planFeatures.map((planFeature) => planFeature.feature.content),
+            isActive: subscription.plan.isActive
+          }
+        : null
     };
   }
 }

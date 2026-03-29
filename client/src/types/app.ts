@@ -93,3 +93,30 @@ export interface AdminStats {
   totalSubscriptions: number;
   totalPayments: number;
 }
+
+export interface UserSummary {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSubscriptionDetail {
+  id: string;
+  planId: string;
+  status: SubscriptionStatus;
+  startDate: string | null;
+  endDate: string | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  createdAt: string;
+  updatedAt: string;
+  plan: Plan | null;
+}
+
+export interface UserDetail extends UserSummary {
+  subscriptions: UserSubscriptionDetail[];
+}

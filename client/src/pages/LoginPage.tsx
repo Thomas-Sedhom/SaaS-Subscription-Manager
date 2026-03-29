@@ -29,8 +29,8 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await login(values);
-      navigate('/plans');
+      const response = await login(values);
+      navigate(response.user.role === 'ADMIN' ? '/admin' : '/plans');
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'Unable to log in with those credentials.'));
     } finally {

@@ -232,7 +232,8 @@ select.field__input {
 .status-badge--failed,
 .status-badge--canceled,
 .status-badge--expired,
-.status-badge--refunded {
+.status-badge--refunded,
+.status-badge--inactive {
   background: rgba(180, 35, 24, 0.12);
   color: var(--danger);
 }
@@ -323,11 +324,73 @@ select.field__input {
   gap: 1rem;
 }
 
+.admin-dashboard {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-dashboard__sidebar {
+  position: sticky;
+  top: 6rem;
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(18, 91, 80, 0.08);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.admin-dashboard__nav-button,
+.admin-user-row {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(18, 91, 80, 0.1);
+  background: #fffdf7;
+  color: var(--text);
+  border-radius: 18px;
+  padding: 0.95rem 1rem;
+  cursor: pointer;
+}
+
+.admin-dashboard__nav-button--active,
+.admin-user-row--active {
+  background: rgba(18, 91, 80, 0.1);
+  border-color: rgba(18, 91, 80, 0.24);
+  color: var(--primary-strong);
+}
+
+.admin-dashboard__main {
+  min-width: 0;
+}
+
+.admin-dashboard__content-grid {
+  align-items: start;
+}
+
+.admin-user-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-action-row,
+.admin-inline-field {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 900px) {
   .auth-shell__panel,
   .hero,
   .grid--two,
-  .grid--three {
+  .grid--three,
+  .admin-dashboard {
     grid-template-columns: 1fr;
   }
 
@@ -342,5 +405,9 @@ select.field__input {
   .topbar,
   .auth-shell {
     padding: 1rem;
+  }
+
+  .admin-dashboard__sidebar {
+    position: static;
   }
 }

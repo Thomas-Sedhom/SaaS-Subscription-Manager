@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../app';
 import { jwtService } from '../shared/services/jwt.service';
-import { seedUsers } from './utils/prisma-mock';
+import { seedPlans, seedSubscriptions, seedUsers } from './utils/prisma-mock';
 
 describe('users module', () => {
-  it('allows only admin to get all users and get a user by id', async () => {
+  it('allows only admin to get all users and get a user by id with subscriptions', async () => {
     seedUsers(
       {
         id: 'admin_1',
@@ -27,6 +27,31 @@ describe('users module', () => {
         updatedAt: new Date()
       }
     );
+
+    seedPlans({
+      id: 'plan_1',
+      name: 'Starter',
+      price: 19.99,
+      billingCycle: 'MONTHLY',
+      features: ['basic'],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    seedSubscriptions({
+      id: 'subscription_1',
+      userId: 'user_1',
+      planId: 'plan_1',
+      status: 'ACTIVE',
+      startDate: new Date(),
+      endDate: null,
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(),
+      cancelAtPeriodEnd: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     const adminToken = jwtService.createJWT({
       id: 'admin_1',
@@ -62,6 +87,8 @@ describe('users module', () => {
     expect(detailResponse.status).toBe(200);
     expect(detailResponse.body.data.id).toBe('user_1');
     expect(detailResponse.body.data.passwordHash).toBeUndefined();
+    expect(detailResponse.body.data.subscriptions).toHaveLength(1);
+    expect(detailResponse.body.data.subscriptions[0].plan?.name).toBe('Starter');
   });
 
   it('gets and updates the current user profile from the JWT cookie', async () => {

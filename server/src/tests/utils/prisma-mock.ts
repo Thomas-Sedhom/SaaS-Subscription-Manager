@@ -162,10 +162,34 @@ const prismaClientMock: any = {
   $disconnect: async () => undefined,
   $transaction: async <T>(callback: (tx: any) => Promise<T>) => callback(prismaClientMock),
   user: {
-    findUnique: async ({ where }: { where: { id?: string; email?: string } }) => {
-      if (where.id) return state.users.find((user) => user.id === where.id) ?? null;
-      if (where.email) return state.users.find((user) => user.email === where.email) ?? null;
-      return null;
+    findUnique: async ({
+      where,
+      include
+    }: {
+      where: { id?: string; email?: string };
+      include?: { subscriptions?: unknown };
+    }) => {
+      const user = where.id
+        ? state.users.find((entry) => entry.id === where.id)
+        : where.email
+          ? state.users.find((entry) => entry.email === where.email)
+          : null;
+
+      if (!user) {
+        return null;
+      }
+
+      if (!include?.subscriptions) {
+        return user;
+      }
+
+      return {
+        ...user,
+        subscriptions: state.subscriptions
+          .filter((subscription) => subscription.userId === user.id)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(includeSubscriptionRelations)
+      };
     },
     findMany: async () => [...state.users].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
     create: async ({ data }: { data: { name: string; email: string; passwordHash: string; role: TestUserRole } }) => {

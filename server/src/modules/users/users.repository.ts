@@ -14,6 +14,25 @@ interface UpdateUserInput {
   passwordHash?: string;
 }
 
+const userDetailInclude = {
+  subscriptions: {
+    include: {
+      plan: {
+        include: {
+          planFeatures: {
+            include: {
+              feature: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  }
+} as const;
+
 export class UsersRepository {
   async findAll() {
     const users = await prisma.user.findMany({
@@ -26,6 +45,13 @@ export class UsersRepository {
   async findById(id: string) {
     const user = await prisma.user.findUnique({ where: { id } });
     return user ? mapUserRecord(user) : null;
+  }
+
+  async findByIdWithSubscriptions(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      include: userDetailInclude
+    });
   }
 
   async findByEmail(email: string) {

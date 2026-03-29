@@ -8,11 +8,15 @@ interface PublicOnlyRouteProps {
 }
 
 export default function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
-  const { isReady, isAuthenticated } = useAuth();
+  const { isReady, isAuthenticated, user } = useAuth();
 
   if (!isReady) {
     return <div className="summary-block">Checking session...</div>;
   }
 
-  return isAuthenticated ? <Navigate replace to="/plans" /> : children;
+  if (!isAuthenticated) {
+    return children;
+  }
+
+  return <Navigate replace to={user?.role === 'ADMIN' ? '/admin' : '/plans'} />;
 }

@@ -1,5 +1,7 @@
+import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { prisma } from '../../shared/database/prisma';
 import { createPlanFeatureCreateInput, mapPlanRecord } from '../../shared/database/prisma-mappers';
+import { AppError } from '../../shared/errors/app-error';
 
 interface CreatePlanInput {
   name: string;
@@ -26,8 +28,9 @@ const planInclude = {
 } as const;
 
 export class PlansRepository {
-  async findAll() {
+  async findAll(options?: { activeOnly?: boolean }) {
     const plans = await prisma.plan.findMany({
+      where: options?.activeOnly ? { isActive: true } : undefined,
       include: planInclude,
       orderBy: { createdAt: 'desc' }
     });
@@ -87,7 +90,7 @@ export class PlansRepository {
     const existingPlan = await prisma.plan.findUnique({ where: { id } });
 
     if (!existingPlan) {
-      return null;
+      throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
     }
 
     const updatedPlan = await prisma.$transaction(async (tx) => {
@@ -117,14 +120,19 @@ export class PlansRepository {
     return mapPlanRecord(updatedPlan);
   }
 
-  async delete(id: string) {
+  async deactivate(id: string) {
     const existingPlan = await prisma.plan.findUnique({ where: { id }, include: planInclude });
 
     if (!existingPlan) {
-      return null;
+      throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    await prisma.plan.delete({ where: { id } });
-    return mapPlanRecord(existingPlan);
+    const plan = await prisma.plan.update({
+      where: { id },
+      data: { isActive: false },
+      include: planInclude
+    });
+
+    return mapPlanRecord(plan);
   }
 }
