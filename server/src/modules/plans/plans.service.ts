@@ -1,5 +1,6 @@
 import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { AppError } from '../../shared/errors/app-error';
+import type { AuthenticatedRequestUser } from '../../shared/types/common.types';
 import type { CreatePlanDto } from './dto/create-plan.dto';
 import type { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansRepository } from './plans.repository';
@@ -7,14 +8,16 @@ import { PlansRepository } from './plans.repository';
 export class PlansService {
   constructor(private readonly plansRepository: PlansRepository) {}
 
-  listPlans() {
-    return this.plansRepository.findAll();
+  listPlans(currentUser: AuthenticatedRequestUser) {
+    return this.plansRepository.findAll({
+      activeOnly: currentUser.role !== 'ADMIN'
+    });
   }
 
-  async getPlanById(planId: string) {
+  async getPlanById(planId: string, currentUser: AuthenticatedRequestUser) {
     const plan = await this.plansRepository.findById(planId);
 
-    if (!plan) {
+    if (!plan || (currentUser.role !== 'ADMIN' && !plan.isActive)) {
       throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
     }
 
@@ -73,13 +76,7 @@ export class PlansService {
       throw new AppError('Plan not found', HTTP_STATUS.NOT_FOUND);
     }
 
-    const isInUse = await this.plansRepository.hasActiveSubscriptions(planId);
-
-    if (isInUse) {
-      throw new AppError('Cannot delete a plan that is used by active or pending subscriptions', HTTP_STATUS.BAD_REQUEST);
-    }
-
-    return this.plansRepository.delete(planId);
+    return this.plansRepository.deactivate(planId);
   }
 }
 

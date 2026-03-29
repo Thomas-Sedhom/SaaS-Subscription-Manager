@@ -5,13 +5,13 @@ import { sendSuccess } from '../../shared/utils/api-response';
 import { plansService } from './plans.service';
 
 class PlansController {
-  listPlans = async (_req: Request, res: Response) => {
-    const result = await plansService.listPlans();
+  listPlans = async (req: Request, res: Response) => {
+    const result = await plansService.listPlans(req.user!);
     return sendSuccess(res, HTTP_STATUS.OK, 'Plans fetched successfully', result);
   };
 
   getPlanById = async (req: Request, res: Response) => {
-    const result = await plansService.getPlanById(req.params.planId);
+    const result = await plansService.getPlanById(req.params.planId, req.user!);
     return sendSuccess(res, HTTP_STATUS.OK, 'Plan fetched successfully', result);
   };
 
@@ -27,7 +27,7 @@ class PlansController {
 
   deletePlan = async (req: Request, res: Response) => {
     const result = await plansService.deletePlan(req.params.planId);
-    return sendSuccess(res, HTTP_STATUS.OK, 'Plan deleted successfully', result);
+    return sendSuccess(res, HTTP_STATUS.OK, 'Plan deactivated successfully', result);
   };
 }
 
