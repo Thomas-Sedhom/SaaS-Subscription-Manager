@@ -15,12 +15,30 @@ describe('swagger docs', () => {
     expect(response.body.paths['/api/v1/auth/login']).toBeDefined();
   });
 
-  it('serves the swagger ui page', async () => {
+  it('redirects the docs entry to the trailing-slash swagger page', async () => {
     const app = createApp();
 
     const response = await request(app).get('/docs');
 
     expect(response.status).toBe(301);
     expect(response.headers.location).toBe('/docs/');
+  });
+
+  it('serves the trailing-slash swagger ui page', async () => {
+    const app = createApp();
+
+    const response = await request(app).get('/docs/');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('SaaS Subscription Manager API Docs');
+  });
+
+  it('serves swagger ui static assets', async () => {
+    const app = createApp();
+
+    const response = await request(app).get('/docs/swagger-ui.css');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/css');
   });
 });

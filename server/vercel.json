@@ -6,7 +6,10 @@
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-          "prisma/**"
+          "prisma/**",
+          "node_modules/.prisma/**",
+          "node_modules/@prisma/client/**",
+          "node_modules/swagger-ui-dist/**"
         ]
       }
     }
