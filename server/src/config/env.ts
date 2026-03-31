@@ -28,6 +28,15 @@ const requireRuntimeValue = (value: string | undefined, name: string): string =>
   return value;
 };
 
+const normalizeCorsOrigins = (value: string | undefined): string[] => {
+  const fallback = 'http://localhost:5173,http://localhost:3000';
+
+  return withDefault(value, fallback)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+};
+
 export const env = {
   NODE_ENV: nodeEnv,
   PORT: Number(withDefault(process.env.PORT, '5000')),
@@ -35,5 +44,5 @@ export const env = {
   DIRECT_URL: withDefault(process.env.DIRECT_URL, ''),
   JWT_SECRET: withDefault(process.env.JWT_SECRET, 'development_jwt_secret'),
   JWT_EXPIRES_IN: withDefault(process.env.JWT_EXPIRES_IN, '7d'),
-  CORS_ORIGIN: withDefault(process.env.CORS_ORIGIN, 'http://localhost:3000')
+  CORS_ORIGIN: normalizeCorsOrigins(process.env.CORS_ORIGIN)
 } as const;

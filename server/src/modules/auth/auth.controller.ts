@@ -4,10 +4,12 @@ import { env } from '../../config/env';
 import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { authService } from './auth.service';
 
+const isProduction = env.NODE_ENV === 'production';
+
 const authCookieOptions: CookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000
 };
 
@@ -41,8 +43,8 @@ class AuthController {
   logout = async (_req: Request, res: Response) => {
     res.clearCookie('accessToken', {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax'
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax'
     });
 
     return res.status(HTTP_STATUS.OK).json({
