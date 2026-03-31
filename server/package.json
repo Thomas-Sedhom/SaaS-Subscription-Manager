@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio"
@@ -29,6 +30,7 @@
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "prisma": "^6.6.0",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1"
   },
@@ -44,7 +46,6 @@
     "eslint": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
     "prettier": "^3.5.3",
-    "prisma": "^6.6.0",
     "supertest": "^7.1.0",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
