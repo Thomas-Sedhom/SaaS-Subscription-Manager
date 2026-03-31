@@ -7,6 +7,7 @@ import helmet from 'helmet';
 
 import { appConfig } from './config/app.config';
 import { env } from './config/env';
+import { registerSwagger } from './docs/swagger';
 import { registerRoutes } from './routes';
 import { errorHandler } from './shared/errors/error-handler';
 import { notFoundMiddleware } from './shared/middlewares/not-found.middleware';
@@ -29,11 +30,13 @@ export const createApp = () => {
       success: true,
       message: appConfig.name,
       data: {
-        version: appConfig.version
+        version: appConfig.version,
+        docs: '/docs'
       }
     });
   });
 
+  registerSwagger(app);
   registerRoutes(app);
 
   app.use(notFoundMiddleware);

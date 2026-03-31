@@ -1,7 +1,7 @@
 # SaaS Subscription Manager Server Architecture
 
 ## Overview
-This backend is a modular monolith built with Node.js, Express, and TypeScript. The HTTP layer, business logic, and repository layer are still separated, but the persistence implementation is temporarily backed by an in-memory store until we finalize the database schema together.
+This backend is a modular monolith built with Node.js, Express, and TypeScript. It uses Prisma for data access, Supabase Postgres for persistence, DTO-based request validation with `class-validator`, and cookie-based JWT authentication.
 
 ## Folder Structure
 ```text
@@ -16,10 +16,13 @@ server/
     config/
       env.ts
       app.config.ts
-      db.config.ts
+    docs/
+      swagger-document.ts
+      swagger.ts
     shared/
       database/
-        in-memory-store.ts
+        prisma.ts
+        prisma-mappers.ts
       errors/
         app-error.ts
         error-handler.ts
@@ -39,12 +42,13 @@ server/
         common.types.ts
         express.d.ts
     modules/
+      admin/
       auth/
-      users/
+      payment-methods/
+      payments/
       plans/
       subscriptions/
-      payments/
-      admin/
+      users/
 ```
 
 ## Module Template
@@ -60,40 +64,46 @@ module-name/
   dto/
     create-*.dto.ts
     update-*.dto.ts
-  middlewares/
 ```
 
 ## Layer Responsibilities
 - `routes`: define endpoints, attach middleware, and forward requests to controllers.
 - `controller`: translate HTTP requests into service calls and send formatted responses.
-- `service`: contain business rules, orchestration, and cross-entity decisions.
-- `repository`: isolate data access so storage details do not leak into controllers or services.
-- `dto`: define request payload validation classes using `class-validator`.
-- `types`: hold module-specific interfaces and helper contracts.
-- `shared`: contains reusable cross-cutting infrastructure used by multiple modules.
-- `config`: centralizes environment values and application settings.
+- `service`: enforce business rules and coordinate cross-module workflows.
+- `repository`: isolate Prisma queries from the service layer.
+- `dto`: define request payload validation classes.
+- `types`: hold module-specific response contracts and helper interfaces.
+- `shared`: contains reusable cross-cutting infrastructure.
+- `docs`: centralizes the OpenAPI document and Swagger UI wiring.
+- `config`: centralizes environment loading and application configuration.
 
-## Current Persistence State
-The schema discussion is still pending.
-For now:
-- `prisma/schema.prisma` is intentionally blank.
-- repositories use `shared/database/in-memory-store.ts` as a temporary implementation.
-- no production database contract should be inferred from the current placeholder store.
+## Persistence Strategy
+- Prisma models are defined in `prisma/schema.prisma`.
+- Database migrations live under `prisma/migrations/`.
+- Runtime queries use the shared Prisma client in `src/shared/database/prisma.ts`.
+- Mapping helpers in `src/shared/database/prisma-mappers.ts` normalize Prisma records into API-facing response shapes.
 
 ## Request Lifecycle
-1. A request enters through `src/routes.ts` under the `/api/v1` prefix.
-2. Module routes apply authentication, role checks, and DTO validation as needed.
-3. The controller receives validated input and delegates the use case to the service.
-4. The service enforces business rules and calls the repository.
-5. The repository reads/writes through the temporary shared in-memory store.
-6. The controller returns a standardized response through shared response helpers.
-7. Any thrown `AppError` or unexpected error is normalized by the global error handler.
+1. A request enters through `src/app.ts`.
+2. Global middleware applies security headers, CORS, JSON parsing, and cookie parsing.
+3. `src/routes.ts` mounts the versioned API router under `/api/v1`.
+4. Module routes apply authentication, role checks, and DTO validation when needed.
+5. Controllers delegate use cases to services.
+6. Services enforce business rules and call repositories.
+7. Repositories read and write through Prisma.
+8. Controllers return standardized success payloads through shared response helpers.
+9. Any `AppError` or unexpected failure is normalized by the global error handler.
+
+## API Documentation
+- Swagger UI is served at `/docs`.
+- The raw OpenAPI JSON document is available at `/docs.json`.
+- The OpenAPI source of truth lives in `src/docs/swagger-document.ts`.
 
 ## Shared vs Module-Specific Rules
-- Put code in `shared/` only when it is genuinely reusable across multiple modules.
-- Keep feature-specific rules, DTOs, and data flows inside the owning module.
-- Avoid leaking storage details outside repositories.
-- Replace the in-memory store with Prisma once the schema is agreed.
+- Put code in `shared/` only when it is reused across multiple modules.
+- Keep business logic, DTOs, and workflows inside the owning module.
+- Keep Prisma usage inside repositories.
+- Keep auth and role middleware generic; module-specific rules should stay in services.
 
 ## Naming Conventions
 - File names use kebab-case with a role suffix such as `auth.service.ts` or `update-plan.dto.ts`.
@@ -104,13 +114,21 @@ For now:
 
 ## Environment and Config Strategy
 Environment variables are documented in `.env.example` and loaded through `config/env.ts`.
-Application-level settings such as API prefix live in `config/app.config.ts`.
-Database configuration is intentionally deferred until the schema discussion is complete.
+Application-wide constants such as the API prefix live in `config/app.config.ts`.
+Key runtime values include:
+- `PORT`
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
+- `CORS_ORIGIN`
 
-## Initial Business Modules
-- `auth`: registration, login, and current-user access.
-- `users`: profile management and admin-driven user listing/creation.
-- `plans`: plan CRUD-style management with admin-protected mutations.
-- `subscriptions`: subscription creation and status/plan changes.
-- `payments`: mock payment processing and payment history.
-- `admin`: dashboard statistics and administrative entry points.
+## Core Business Modules
+- `auth`: signup, login, logout, and current-user session lookup.
+- `users`: profile management plus admin-only user listing and detail lookup.
+- `plans`: plan catalog queries and admin-protected plan mutations.
+- `subscriptions`: plan selection, checkout, cancellation, and plan changes.
+- `payments`: payment history and payment processing orchestration.
+- `payment-methods`: saved card management for checkout.
+- `admin`: dashboard statistics and administrator creation.
+
