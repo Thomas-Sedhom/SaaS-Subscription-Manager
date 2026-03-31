@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 
+import { authTokenStorage } from '../../../services/apiClient';
 import type { AuthResponse, AuthUser } from '../../../types/app';
 import { authApi } from '../services/auth.api';
 
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const response = await authApi.getCurrentUser();
       setUser(response.user);
     } catch {
+      authTokenStorage.clear();
       setUser(null);
     } finally {
       setIsReady(true);
@@ -46,19 +48,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const login = async (payload: AuthCredentials) => {
     const response = await authApi.login(payload);
+    authTokenStorage.set(response.token);
     setUser(response.user);
     return response;
   };
 
   const signup = async (payload: SignupPayload) => {
     const response = await authApi.signup(payload);
+    authTokenStorage.set(response.token);
     setUser(response.user);
     return response;
   };
 
   const logout = async () => {
-    await authApi.logout();
-    setUser(null);
+    try {
+      await authApi.logout();
+    } finally {
+      authTokenStorage.clear();
+      setUser(null);
+    }
   };
 
   const value = useMemo(
