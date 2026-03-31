@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+﻿import { Prisma } from '@prisma/client';
 
 const toNumber = (value: Prisma.Decimal | number) => {
   return typeof value === 'number' ? value : value.toNumber();
@@ -29,14 +29,27 @@ export const mapUserRecord = <T extends { id: string; name: string; email: strin
   updatedAt: user.updatedAt
 });
 
-export const mapPaymentMethodRecord = <T extends { id: string; userId: string; methodType: string; methodDetails: string; isDefault: boolean; last4: string | null; brand: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }>(paymentMethod: T) => ({
+export const mapPaymentMethodRecord = <T extends {
+  id: string;
+  userId: string;
+  methodType: string;
+  isDefault: boolean;
+  last4: string | null;
+  cardholderName: string | null;
+  expiryMonth: number | null;
+  expiryYear: number | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}>(paymentMethod: T) => ({
   id: paymentMethod.id,
   userId: paymentMethod.userId,
   methodType: paymentMethod.methodType,
-  methodDetails: paymentMethod.methodDetails,
   isDefault: paymentMethod.isDefault,
   last4: paymentMethod.last4,
-  brand: paymentMethod.brand,
+  cardholderName: paymentMethod.cardholderName,
+  expiryMonth: paymentMethod.expiryMonth,
+  expiryYear: paymentMethod.expiryYear,
   isActive: paymentMethod.isActive,
   createdAt: paymentMethod.createdAt,
   updatedAt: paymentMethod.updatedAt
@@ -45,6 +58,7 @@ export const mapPaymentMethodRecord = <T extends { id: string; userId: string; m
 export const mapPlanRecord = <T extends {
   id: string;
   name: string;
+  description: string | null;
   price: Prisma.Decimal | number;
   billingCycle: 'MONTHLY' | 'YEARLY';
   isActive: boolean;
@@ -54,6 +68,7 @@ export const mapPlanRecord = <T extends {
 }>(plan: T) => ({
   id: plan.id,
   name: plan.name,
+  description: plan.description,
   price: toNumber(plan.price),
   billingCycle: plan.billingCycle,
   features: plan.planFeatures?.map((planFeature) => planFeature.feature.content) ?? [],
@@ -79,10 +94,11 @@ export const mapPaymentRecord = <T extends {
     id: string;
     userId: string;
     methodType: string;
-    methodDetails: string;
     isDefault: boolean;
     last4: string | null;
-    brand: string | null;
+    cardholderName: string | null;
+    expiryMonth: number | null;
+    expiryYear: number | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -100,7 +116,6 @@ export const mapPaymentRecord = <T extends {
   failureReason: payment.failureReason,
   type: payment.type,
   targetPlanId: payment.targetPlanId,
-  brand: payment.paymentMethod?.brand ?? null,
   createdAt: payment.createdAt,
   updatedAt: payment.updatedAt,
   paymentMethod: payment.paymentMethod ? mapPaymentMethodRecord(payment.paymentMethod) : null,
@@ -132,6 +147,7 @@ export const mapSubscriptionRecord = <T extends {
   plan?: {
     id: string;
     name: string;
+    description: string | null;
     price: Prisma.Decimal | number;
     billingCycle: 'MONTHLY' | 'YEARLY';
     isActive: boolean;

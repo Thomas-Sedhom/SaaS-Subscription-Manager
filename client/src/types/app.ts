@@ -1,4 +1,4 @@
-export type UserRole = 'USER' | 'ADMIN';
+﻿export type UserRole = 'USER' | 'ADMIN';
 export type BillingCycle = 'MONTHLY' | 'YEARLY';
 export type SubscriptionStatus = 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELED';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
@@ -38,6 +38,7 @@ export interface LogoutResponse {
 export interface Plan {
   id: string;
   name: string;
+  description?: string | null;
   price: number;
   billingCycle: BillingCycle;
   features: string[];
@@ -66,10 +67,11 @@ export interface PaymentMethod {
   id: string;
   userId: string;
   methodType: string;
-  methodDetails: string;
   isDefault: boolean;
   last4?: string | null;
-  brand?: string | null;
+  cardholderName?: string | null;
+  expiryMonth?: number | null;
+  expiryYear?: number | null;
   isActive: boolean;
 }
 
@@ -82,9 +84,9 @@ export interface Payment {
   status: PaymentStatus;
   provider: string;
   type?: PaymentType;
-  brand?: string | null;
   failureReason?: string | null;
   createdAt: string;
+  paymentMethod?: PaymentMethod | null;
 }
 
 export interface AdminStats {

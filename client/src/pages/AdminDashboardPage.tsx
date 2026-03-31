@@ -15,9 +15,10 @@ function getErrorMessage(error, fallback) {
 
 const emptyPlanForm = {
   name: '',
+  description: '',
   price: '',
   billingCycle: 'MONTHLY',
-  features: '',
+  features: [''],
   isActive: true
 };
 
@@ -28,11 +29,32 @@ const emptyAdminForm = {
 };
 
 const sections = [
-  { id: 'statistics', label: 'Statistics' },
-  { id: 'users', label: 'Users' },
-  { id: 'plans', label: 'Plans' },
-  { id: 'new-admin', label: 'New Admin' }
-];
+  {
+    id: 'statistics',
+    label: 'Statistics',
+    caption: 'Platform overview'
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    caption: 'Accounts and history'
+  },
+  {
+    id: 'new-plan',
+    label: 'New Plan',
+    caption: 'Catalog creation'
+  },
+  {
+    id: 'manage-plans',
+    label: 'Manage Plans',
+    caption: 'Catalog operations'
+  },
+  {
+    id: 'new-admin',
+    label: 'New Admin',
+    caption: 'Team access'
+  }
+] as const;
 
 export default function AdminDashboardPage() {
   const [activeSection, setActiveSection] = useState('statistics');
@@ -106,12 +128,17 @@ export default function AdminDashboardPage() {
     }
 
     return [
-      { label: 'Users', value: stats.totalUsers, detail: 'Total registered accounts' },
-      { label: 'Plans', value: stats.totalPlans, detail: 'Catalog entries available to users' },
+      { label: 'Users', value: stats.totalUsers, detail: 'Registered accounts across the platform' },
+      { label: 'Plans', value: stats.totalPlans, detail: 'Published and archived subscription plans' },
       { label: 'Subscriptions', value: stats.totalSubscriptions, detail: 'Current and historical subscription records' },
-      { label: 'Payments', value: stats.totalPayments, detail: 'Mock payment records processed so far' }
+      { label: 'Payments', value: stats.totalPayments, detail: 'Mock billing events processed so far' }
     ];
   }, [stats]);
+
+  const activePlansCount = useMemo(
+    () => plans.filter((plan) => plan.isActive).length,
+    [plans]
+  );
 
   const handlePlanFormChange = (event) => {
     const { name, type, value, checked } = event.target;
@@ -119,6 +146,38 @@ export default function AdminDashboardPage() {
       ...current,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleFeatureChange = (index, value) => {
+    setPlanForm((current) => ({
+      ...current,
+      features: current.features.map((feature, featureIndex) => (
+        featureIndex === index ? value : feature
+      ))
+    }));
+  };
+
+  const handleAddFeature = () => {
+    setPlanForm((current) => ({
+      ...current,
+      features: [...current.features, '']
+    }));
+  };
+
+  const handleRemoveFeature = (index) => {
+    setPlanForm((current) => {
+      if (current.features.length === 1) {
+        return {
+          ...current,
+          features: ['']
+        };
+      }
+
+      return {
+        ...current,
+        features: current.features.filter((_, featureIndex) => featureIndex !== index)
+      };
+    });
   };
 
   const handleAdminFormChange = (event) => {
@@ -137,9 +196,10 @@ export default function AdminDashboardPage() {
 
     const payload = {
       name: planForm.name,
+      description: planForm.description.trim(),
       price: Number(planForm.price),
       billingCycle: planForm.billingCycle,
-      features: planForm.features.split(',').map((item) => item.trim()).filter(Boolean),
+      features: planForm.features.map((item) => item.trim()).filter(Boolean),
       isActive: planForm.isActive
     };
 
@@ -181,13 +241,14 @@ export default function AdminDashboardPage() {
   };
 
   const startEditingPlan = (plan) => {
-    setActiveSection('plans');
+    setActiveSection('new-plan');
     setEditingPlanId(plan.id);
     setPlanForm({
       name: plan.name,
+      description: plan.description || '',
       price: String(plan.price),
       billingCycle: plan.billingCycle,
-      features: (plan.features || []).join(', '),
+      features: plan.features?.length ? [...plan.features] : [''],
       isActive: Boolean(plan.isActive)
     });
   };
@@ -197,20 +258,20 @@ export default function AdminDashboardPage() {
     setPlanForm(emptyPlanForm);
   };
 
-  const handleDeletePlan = async (planId) => {
+  const handleDeactivatePlan = async (planId) => {
     setIsSubmitting(true);
     setError('');
     setInfoMessage('');
 
     try {
       await plansApi.deletePlan(planId);
-      setInfoMessage('Plan deleted successfully.');
+      setInfoMessage('Plan deactivated successfully.');
       if (editingPlanId === planId) {
         resetPlanForm();
       }
       await loadDashboard();
     } catch (requestError) {
-      setError(getErrorMessage(requestError, 'Unable to delete that plan.'));
+      setError(getErrorMessage(requestError, 'Unable to deactivate that plan.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -218,10 +279,11 @@ export default function AdminDashboardPage() {
 
   const renderStatisticsSection = () => (
     <div className="stack">
-      <div className="page-header">
+      <div className="admin-section-heading">
         <div>
+          <span className="eyebrow">Operational Snapshot</span>
           <h2>Statistics</h2>
-          <p>Track core platform activity across accounts, plans, subscriptions, and payments.</p>
+          <p>Track the full platform footprint across customers, plans, subscriptions, and mock payments.</p>
         </div>
       </div>
       <div className="grid grid--three">
@@ -234,14 +296,15 @@ export default function AdminDashboardPage() {
 
   const renderUsersSection = () => (
     <div className="stack">
-      <div className="page-header">
+      <div className="admin-section-heading">
         <div>
+          <span className="eyebrow">Account Review</span>
           <h2>Users</h2>
-          <p>Browse all accounts and open a full user record with subscription history.</p>
+          <p>Inspect the account roster and open a complete profile with subscription history.</p>
         </div>
       </div>
       <div className="grid grid--two admin-dashboard__content-grid">
-        <CardPanel title="All Users" subtitle="Select a user to inspect their account information and subscriptions.">
+        <CardPanel title="Directory" subtitle={`${users.length} user accounts currently available to review.`}>
           <div className="stack">
             {users.map((user) => (
               <button
@@ -250,9 +313,12 @@ export default function AdminDashboardPage() {
                 onClick={() => void loadUserDetail(user.id)}
                 type="button"
               >
-                <div>
-                  <strong>{user.name}</strong>
-                  <p className="helper-text">{user.email}</p>
+                <div className="admin-user-row__identity">
+                  <div className="admin-user-row__avatar">{user.name.slice(0, 1).toUpperCase()}</div>
+                  <div>
+                    <strong>{user.name}</strong>
+                    <p className="helper-text">{user.email}</p>
+                  </div>
                 </div>
                 <StatusBadge value={user.role} />
               </button>
@@ -260,39 +326,59 @@ export default function AdminDashboardPage() {
           </div>
         </CardPanel>
 
-        <CardPanel title="User Details" subtitle="Account profile and related subscriptions for the selected user.">
+        <CardPanel title="User Details" subtitle="Profile details and subscription footprint for the selected account.">
           {isUserDetailLoading ? (
             <div className="helper-text">Loading selected user...</div>
           ) : !selectedUser ? (
             <div className="helper-text">Choose a user from the list to see their details.</div>
           ) : (
             <div className="stack">
-              <div className="summary-block">
-                <h3>{selectedUser.name}</h3>
-                <p>{selectedUser.email}</p>
-                <div className="stack" style={{ marginTop: '1rem' }}>
-                  <div className="list-row"><span>Role</span><strong>{selectedUser.role}</strong></div>
-                  <div className="list-row"><span>User ID</span><strong>{selectedUser.id}</strong></div>
-                  <div className="list-row"><span>Joined</span><strong>{formatDate(selectedUser.createdAt)}</strong></div>
+              <div className="admin-profile-card">
+                <div className="admin-profile-card__header">
+                  <div>
+                    <h3>{selectedUser.name}</h3>
+                    <p>{selectedUser.email}</p>
+                  </div>
+                  <StatusBadge value={selectedUser.role} />
+                </div>
+                <div className="admin-profile-grid">
+                  <div className="admin-profile-stat">
+                    <span>Joined</span>
+                    <strong>{formatDate(selectedUser.createdAt)}</strong>
+                  </div>
+                  <div className="admin-profile-stat">
+                    <span>Subscriptions</span>
+                    <strong>{selectedUser.subscriptions?.length || 0}</strong>
+                  </div>
                 </div>
               </div>
               <div className="stack">
-                <h3 style={{ margin: 0 }}>Subscriptions</h3>
+                <h3 className="admin-subsection-title">Subscriptions</h3>
                 {selectedUser.subscriptions?.length ? (
                   selectedUser.subscriptions.map((subscription) => (
-                    <div key={subscription.id} className="summary-block">
-                      <div className="list-row" style={{ paddingTop: 0 }}>
+                    <article key={subscription.id} className="admin-subscription-card">
+                      <div className="admin-subscription-card__header">
                         <div>
                           <strong>{subscription.plan?.name || 'Plan removed'}</strong>
                           <p className="helper-text">
-                            {subscription.plan ? `${formatCurrency(subscription.plan.price)} / ${subscription.plan.billingCycle.toLowerCase()}` : 'Unavailable plan'}
+                            {subscription.plan
+                              ? `${formatCurrency(subscription.plan.price)} / ${subscription.plan.billingCycle.toLowerCase()}`
+                              : 'Unavailable plan'}
                           </p>
                         </div>
                         <StatusBadge value={subscription.status} />
                       </div>
-                      <p className="meta-text">Started: {formatDate(subscription.startDate)}</p>
-                      <p className="meta-text">Current Period End: {formatDate(subscription.currentPeriodEnd)}</p>
-                    </div>
+                      <div className="admin-profile-grid admin-profile-grid--compact">
+                        <div className="admin-profile-stat">
+                          <span>Started</span>
+                          <strong>{formatDate(subscription.startDate)}</strong>
+                        </div>
+                        <div className="admin-profile-stat">
+                          <span>Period End</span>
+                          <strong>{formatDate(subscription.currentPeriodEnd)}</strong>
+                        </div>
+                      </div>
+                    </article>
                   ))
                 ) : (
                   <div className="helper-text">This user does not have any subscriptions yet.</div>
@@ -305,88 +391,185 @@ export default function AdminDashboardPage() {
     </div>
   );
 
-  const renderPlansSection = () => (
+  const renderNewPlanSection = () => (
     <div className="stack">
-      <div className="page-header">
+      <div className="admin-section-heading">
         <div>
-          <h2>Plans</h2>
-          <p>Create, update, activate, or remove pricing plans from the shared catalog.</p>
+          <span className="eyebrow">Catalog Creation</span>
+          <h2>{editingPlanId ? 'Edit Plan' : 'New Plan'}</h2>
+          <p>Define pricing, billing cycle, availability, description, and the public feature list for a subscription plan.</p>
         </div>
       </div>
-      <div className="grid grid--two admin-dashboard__content-grid">
-        <CardPanel title={editingPlanId ? 'Edit Plan' : 'Create Plan'} subtitle="Manage pricing, billing cycle, activation, and the plan feature list.">
-          <form className="form-grid" onSubmit={handlePlanSubmit}>
-            <InputField label="Plan name" name="name" value={planForm.name} onChange={handlePlanFormChange} />
-            <InputField label="Price" name="price" type="number" min="0" step="0.01" value={planForm.price} onChange={handlePlanFormChange} />
-            <label className="field">
-              <span className="field__label">Billing cycle</span>
-              <select className="field__input" name="billingCycle" value={planForm.billingCycle} onChange={handlePlanFormChange}>
-                <option value="MONTHLY">Monthly</option>
-                <option value="YEARLY">Yearly</option>
-              </select>
-            </label>
-            <label className="field">
+      <CardPanel
+        title={editingPlanId ? 'Edit Plan' : 'Create Plan'}
+        subtitle="Control pricing, billing cycle, activation state, description, and the visible feature list."
+      >
+        <form className="form-grid" onSubmit={handlePlanSubmit}>
+          <InputField label="Plan name" name="name" value={planForm.name} onChange={handlePlanFormChange} />
+          <label className="field">
+            <span className="field__label">Description</span>
+            <textarea
+              className="field__input"
+              rows={3}
+              name="description"
+              placeholder="Summarize what this plan is best for."
+              value={planForm.description}
+              onChange={handlePlanFormChange}
+            />
+          </label>
+          <InputField label="Price" name="price" type="number" min="0" step="0.01" value={planForm.price} onChange={handlePlanFormChange} />
+          <label className="field">
+            <span className="field__label">Billing cycle</span>
+            <select className="field__input" name="billingCycle" value={planForm.billingCycle} onChange={handlePlanFormChange}>
+              <option value="MONTHLY">Monthly</option>
+              <option value="YEARLY">Yearly</option>
+            </select>
+          </label>
+          <div className="field admin-feature-field">
+            <div className="admin-feature-field__header">
               <span className="field__label">Features</span>
-              <textarea
-                className="field__input"
-                rows={4}
-                name="features"
-                placeholder="Priority support, Team analytics, Unlimited exports"
-                value={planForm.features}
-                onChange={handlePlanFormChange}
-              />
-            </label>
-            <label className="field admin-inline-field">
-              <input type="checkbox" name="isActive" checked={planForm.isActive} onChange={handlePlanFormChange} />
-              <span className="field__label">Plan is active</span>
-            </label>
-            <div className="admin-action-row">
-              <Button disabled={isSubmitting} type="submit">{editingPlanId ? 'Update Plan' : 'Create Plan'}</Button>
-              {editingPlanId ? (
-                <Button type="button" variant="ghost" onClick={resetPlanForm}>Clear Edit</Button>
-              ) : null}
+              <Button type="button" variant="ghost" onClick={handleAddFeature}>+ Add Feature</Button>
             </div>
-          </form>
-        </CardPanel>
-
-        <CardPanel title="Existing Plans" subtitle="Review the current catalog and choose a plan to edit or remove.">
-          <div className="stack">
-            {plans.map((plan) => (
-              <div className="list-row" key={plan.id}>
-                <div>
-                  <strong>{plan.name}</strong>
-                  <p className="helper-text">{formatCurrency(plan.price)} / {plan.billingCycle.toLowerCase()}</p>
-                  <p className="meta-text">{(plan.features || []).join(' • ')}</p>
+            <div className="admin-feature-list">
+              {planForm.features.map((feature, index) => (
+                <div className="admin-feature-row" key={`feature-${index}`}>
+                  <input
+                    className="field__input admin-feature-row__input"
+                    type="text"
+                    placeholder={`Feature ${index + 1}`}
+                    value={feature}
+                    onChange={(event) => handleFeatureChange(index, event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => handleRemoveFeature(index)}
+                  >
+                    Remove
+                  </Button>
                 </div>
-                <div className="admin-action-row">
+              ))}
+            </div>
+          </div>
+          <label className="field admin-inline-field">
+            <input type="checkbox" name="isActive" checked={planForm.isActive} onChange={handlePlanFormChange} />
+            <span className="field__label">Plan is active</span>
+          </label>
+          <div className="admin-action-row">
+            <Button disabled={isSubmitting} type="submit">{editingPlanId ? 'Update Plan' : 'Create Plan'}</Button>
+            {editingPlanId ? (
+              <Button type="button" variant="ghost" onClick={resetPlanForm}>Clear Edit</Button>
+            ) : null}
+          </div>
+        </form>
+      </CardPanel>
+    </div>
+  );
+
+  const renderManagePlansSection = () => (
+    <div className="stack">
+      <div className="admin-section-heading">
+        <div>
+          <span className="eyebrow">Catalog Operations</span>
+          <h2>Manage Plans</h2>
+          <p>Review the full plan catalog, open an existing plan for editing, and deactivate published plans when needed.</p>
+        </div>
+      </div>
+      <CardPanel
+        className="admin-plan-catalog-panel"
+        title="Plan Catalog"
+        subtitle={`${activePlansCount} active plans available to customers right now.`}
+      >
+        <div className="stack">
+          {plans.map((plan) => (
+            <article className="admin-plan-catalog-card" key={plan.id}>
+              <div className="admin-plan-catalog-card__header">
+                <div className="admin-plan-catalog-card__identity">
+                  <strong>{plan.name}</strong>
+                  <p>{plan.description || 'No plan description has been added yet.'}</p>
+                </div>
+
+                <div className="admin-plan-catalog-card__header-side">
                   <StatusBadge value={plan.isActive ? 'ACTIVE' : 'INACTIVE'} />
-                  <Button variant="ghost" onClick={() => startEditingPlan(plan)}>Edit</Button>
-                  <Button variant="danger" onClick={() => void handleDeletePlan(plan.id)}>Delete</Button>
+                  <div className="admin-plan-catalog-card__actions">
+                    <Button variant="ghost" onClick={() => startEditingPlan(plan)}>Edit Plan</Button>
+                    {plan.isActive ? (
+                      <Button variant="danger" onClick={() => void handleDeactivatePlan(plan.id)}>Deactivate</Button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardPanel>
-      </div>
+
+              <div className="admin-plan-catalog-card__metrics">
+                <div className="admin-plan-catalog-card__metric">
+                  <span>Price</span>
+                  <strong>{formatCurrency(plan.price)}</strong>
+                </div>
+                <div className="admin-plan-catalog-card__metric">
+                  <span>Billing</span>
+                  <strong>{plan.billingCycle === 'MONTHLY' ? 'Monthly' : 'Yearly'}</strong>
+                </div>
+                <div className="admin-plan-catalog-card__metric">
+                  <span>Features</span>
+                  <strong>{(plan.features || []).length}</strong>
+                </div>
+              </div>
+
+              <div className="admin-plan-catalog-card__features-block">
+                <div className="admin-plan-catalog-card__features-header">
+                  <span>Included features</span>
+                </div>
+                {(plan.features || []).length ? (
+                  <div className="admin-plan-catalog-card__feature-list">
+                    {(plan.features || []).map((feature) => (
+                      <div className="admin-plan-catalog-card__feature-item" key={`${plan.id}-${feature}`}>
+                        <span className="admin-plan-catalog-card__feature-dot" aria-hidden="true" />
+                        <span>{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="admin-plan-catalog-card__empty-copy">No features listed yet.</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </CardPanel>
     </div>
   );
 
   const renderNewAdminSection = () => (
     <div className="stack">
-      <div className="page-header">
+      <div className="admin-section-heading">
         <div>
+          <span className="eyebrow">Team Access</span>
           <h2>New Admin</h2>
-          <p>Allow an existing admin to register another admin account for the dashboard.</p>
+          <p>Create another administrator with access to metrics, users, plan management, and dashboard tools.</p>
         </div>
       </div>
-      <CardPanel title="Create Admin Account" subtitle="Only an authenticated admin can submit this form.">
-        <form className="form-grid" onSubmit={handleCreateAdmin}>
-          <InputField label="Name" name="name" value={adminForm.name} onChange={handleAdminFormChange} />
-          <InputField label="Email" name="email" type="email" value={adminForm.email} onChange={handleAdminFormChange} />
-          <InputField label="Password" name="password" type="password" value={adminForm.password} onChange={handleAdminFormChange} />
-          <Button disabled={isSubmitting} type="submit">Create Admin</Button>
-        </form>
-      </CardPanel>
+      <div className="grid grid--two admin-dashboard__content-grid">
+        <CardPanel title="Why add another admin?" subtitle="A second administrator helps split responsibility across support, billing, and product operations.">
+          <div className="stack">
+            <div className="admin-note-card">
+              <strong>Shared oversight</strong>
+              <p className="helper-text">Multiple admins can monitor customer subscriptions and react faster to plan or payment issues.</p>
+            </div>
+            <div className="admin-note-card">
+              <strong>Safer operations</strong>
+              <p className="helper-text">Access stays inside the dashboard flow instead of sharing one account between team members.</p>
+            </div>
+          </div>
+        </CardPanel>
+        <CardPanel title="Create Admin Account" subtitle="Only an authenticated admin can submit this form.">
+          <form className="form-grid" onSubmit={handleCreateAdmin}>
+            <InputField label="Name" name="name" value={adminForm.name} onChange={handleAdminFormChange} />
+            <InputField label="Email" name="email" type="email" value={adminForm.email} onChange={handleAdminFormChange} />
+            <InputField label="Password" name="password" type="password" value={adminForm.password} onChange={handleAdminFormChange} />
+            <Button disabled={isSubmitting} type="submit">Create Admin</Button>
+          </form>
+        </CardPanel>
+      </div>
     </div>
   );
 
@@ -394,8 +577,10 @@ export default function AdminDashboardPage() {
     switch (activeSection) {
       case 'users':
         return renderUsersSection();
-      case 'plans':
-        return renderPlansSection();
+      case 'new-plan':
+        return renderNewPlanSection();
+      case 'manage-plans':
+        return renderManagePlansSection();
       case 'new-admin':
         return renderNewAdminSection();
       case 'statistics':
@@ -405,14 +590,7 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="stack">
-      <div className="page-header">
-        <div>
-          <h1>Admin Dashboard</h1>
-          <p>Navigate between statistics, users, plans, and admin management from one control center.</p>
-        </div>
-      </div>
-
+    <div className="admin-hub stack">
       {error ? <div className="alert alert--error">{error}</div> : null}
       {infoMessage ? <div className="alert alert--info">{infoMessage}</div> : null}
 
@@ -421,7 +599,11 @@ export default function AdminDashboardPage() {
       ) : (
         <div className="admin-dashboard">
           <aside className="admin-dashboard__sidebar">
-            <span className="eyebrow">Admin Control</span>
+            <div className="admin-dashboard__sidebar-top">
+              <span className="eyebrow">Workspace</span>
+              <h2>Command Panel</h2>
+            </div>
+
             <div className="stack">
               {sections.map((section) => (
                 <button
@@ -430,15 +612,24 @@ export default function AdminDashboardPage() {
                   onClick={() => setActiveSection(section.id)}
                   type="button"
                 >
-                  {section.label}
+                  <span className="admin-dashboard__nav-caption">{section.caption}</span>
+                  <strong>{section.label}</strong>
                 </button>
               ))}
             </div>
+
+          
           </aside>
 
-          <section className="admin-dashboard__main">{renderActiveSection()}</section>
+          <section className="admin-dashboard__main">
+            <div className="admin-dashboard__panel">{renderActiveSection()}</div>
+          </section>
         </div>
       )}
     </div>
   );
 }
+
+
+
+

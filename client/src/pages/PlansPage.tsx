@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import Button from '../components/Button';
 import CardPanel from '../components/CardPanel';
 import { useAuth } from '../features/authentication';
 import { PlanCard, plansApi } from '../features/plans';
 import { subscriptionsApi } from '../features/subscriptions';
+import { formatCurrency } from '../utils/formatters';
 
 function getErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback;
@@ -15,8 +17,10 @@ export default function PlansPage() {
   const { user } = useAuth();
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [previewPlan, setPreviewPlan] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSelectingPlan, setIsSelectingPlan] = useState(false);
 
   useEffect(() => {
     const loadPage = async () => {
@@ -38,8 +42,35 @@ export default function PlansPage() {
       }
     };
 
-    loadPage();
+    void loadPage();
   }, []);
+
+  const handleSelectPlan = async () => {
+    if (!previewPlan) {
+      return;
+    }
+
+    setIsSelectingPlan(true);
+    setError('');
+
+    try {
+      if (currentSubscription?.status === 'ACTIVE') {
+        navigate(`/subscription?plan=${previewPlan.id}&checkout=open`);
+        return;
+      }
+
+      await subscriptionsApi.selectPlan({
+        planId: previewPlan.id
+      });
+
+      navigate('/subscription?checkout=open');
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, 'Unable to prepare that plan for checkout.'));
+    } finally {
+      setIsSelectingPlan(false);
+      setPreviewPlan(null);
+    }
+  };
 
   return (
     <div className="stack">
@@ -52,14 +83,6 @@ export default function PlansPage() {
 
       {error ? <div className="alert alert--error">{error}</div> : null}
 
-      <CardPanel title="Selection Guidance" subtitle="The subscription center handles both first-time checkout and plan changes.">
-        <div className="helper-text">
-          {currentSubscription
-            ? `Your current plan is ${currentSubscription.plan?.name}. Choose another plan to open the plan-change flow.`
-            : 'Choose any active plan and continue to the subscription center to complete checkout.'}
-        </div>
-      </CardPanel>
-
       {isLoading ? (
         <CardPanel title="Loading plans" subtitle="Fetching the latest plan catalog from the backend." />
       ) : (
@@ -70,7 +93,7 @@ export default function PlansPage() {
               plan={plan}
               isCurrent={currentSubscription?.planId === plan.id}
               disabled={!plan.isActive}
-              onSelect={() => navigate(`/subscription?plan=${plan.id}`)}
+              onSelect={() => setPreviewPlan(plan)}
             />
           ))}
         </div>
@@ -80,6 +103,48 @@ export default function PlansPage() {
         <CardPanel title="Admin Shortcut" subtitle="You can also manage plans and review users from the dashboard.">
           <div className="helper-text">Open the admin page to create, edit, or remove plans and to inspect user activity.</div>
         </CardPanel>
+      ) : null}
+
+      {previewPlan ? (
+        <div className="checkout-modal">
+          <div className="checkout-modal__backdrop" onClick={() => setPreviewPlan(null)} />
+          <div className="checkout-modal__dialog">
+            <CardPanel
+              title={previewPlan.name}
+              subtitle={`${formatCurrency(previewPlan.price)} / ${previewPlan.billingCycle.toLowerCase()}`}
+              actions={
+                <Button type="button" variant="ghost" onClick={() => setPreviewPlan(null)}>
+                  Close
+                </Button>
+              }
+            >
+              <div className="stack">
+                {previewPlan.description ? <div className="helper-text">{previewPlan.description}</div> : null}
+                <div className="helper-text">
+                  {currentSubscription?.status === 'ACTIVE'
+                    ? 'Selecting this plan will move you into the plan-change checkout flow.'
+                    : 'Selecting this plan will create a pending subscription row before you complete checkout.'}
+                </div>
+
+                <div className="plan-preview-list">
+                  {previewPlan.features?.map((feature) => (
+                    <div key={feature} className="plan-preview-list__item">
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  disabled={isSelectingPlan}
+                  onClick={handleSelectPlan}
+                  type="button"
+                >
+                  Select Plan
+                </Button>
+              </div>
+            </CardPanel>
+          </div>
+        </div>
       ) : null}
     </div>
   );

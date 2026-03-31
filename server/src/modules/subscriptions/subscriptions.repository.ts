@@ -1,4 +1,4 @@
-import { prisma } from '../../shared/database/prisma';
+﻿import { prisma } from '../../shared/database/prisma';
 import { mapPlanRecord, mapSubscriptionRecord } from '../../shared/database/prisma-mappers';
 
 interface CreateSubscriptionInput {
@@ -58,6 +58,19 @@ export class SubscriptionsRepository {
         status: {
           in: ['ACTIVE', 'PENDING']
         }
+      },
+      include: subscriptionInclude,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return subscription ? mapSubscriptionRecord(subscription) : null;
+  }
+
+  async findPendingByUserId(userId: string) {
+    const subscription = await prisma.subscription.findFirst({
+      where: {
+        userId,
+        status: 'PENDING'
       },
       include: subscriptionInclude,
       orderBy: { createdAt: 'desc' }

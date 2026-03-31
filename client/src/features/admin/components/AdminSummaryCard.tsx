@@ -10,8 +10,12 @@ interface AdminSummaryCardProps {
 
 export default function AdminSummaryCard({ label, value, detail }: AdminSummaryCardProps) {
   return (
-    <CardPanel title={label} subtitle={detail}>
-      <div style={{ fontSize: '2rem', fontWeight: 800 }}>{value}</div>
+    <CardPanel>
+      <div className="admin-summary-card">
+        <span className="admin-summary-card__label">{label}</span>
+        <strong className="admin-summary-card__value">{value}</strong>
+        {detail ? <p className="admin-summary-card__detail">{detail}</p> : null}
+      </div>
     </CardPanel>
   );
 }

@@ -1,6 +1,18 @@
 import CardPanel from '../../../components/CardPanel';
 import StatusBadge from '../../../components/StatusBadge';
-import { formatCurrency, formatDateTime } from '../../../utils/formatters';
+import { formatCurrency, formatDateTime, formatPaymentMethodLabel } from '../../../utils/formatters';
+
+function getPaymentSourceLabel(payment) {
+  if (payment.paymentMethod) {
+    return formatPaymentMethodLabel(payment.paymentMethod);
+  }
+
+  if (payment.provider === 'one-time-card') {
+    return 'One-time card';
+  }
+
+  return 'Saved card';
+}
 
 export default function PaymentHistoryList({ payments = [] }) {
   return (
@@ -17,7 +29,7 @@ export default function PaymentHistoryList({ payments = [] }) {
               <div>
                 <strong>{payment.type?.replaceAll('_', ' ') || 'Payment'}</strong>
                 <p className="helper-text">
-                  {formatCurrency(payment.amount)} {payment.currency} via {payment.brand || payment.provider}
+                  {formatCurrency(payment.amount)} {payment.currency} via {getPaymentSourceLabel(payment)}
                 </p>
                 <p className="meta-text">{formatDateTime(payment.createdAt)}</p>
                 {payment.failureReason ? <p className="field__error">{payment.failureReason}</p> : null}

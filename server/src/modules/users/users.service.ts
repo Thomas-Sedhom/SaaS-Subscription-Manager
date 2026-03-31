@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+﻿import bcrypt from 'bcrypt';
 
 import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { AppError } from '../../shared/errors/app-error';
@@ -130,6 +130,7 @@ export class UsersService {
     plan: {
       id: string;
       name: string;
+      description: string | null;
       price: { toNumber(): number } | number;
       billingCycle: 'MONTHLY' | 'YEARLY';
       isActive: boolean;
@@ -151,6 +152,7 @@ export class UsersService {
         ? {
             id: subscription.plan.id,
             name: subscription.plan.name,
+            description: subscription.plan.description,
             price:
               typeof subscription.plan.price === 'number'
                 ? subscription.plan.price

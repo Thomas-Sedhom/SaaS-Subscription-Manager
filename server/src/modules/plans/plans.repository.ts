@@ -1,10 +1,11 @@
-import { HTTP_STATUS } from '../../shared/constants/http-status';
+﻿import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { prisma } from '../../shared/database/prisma';
 import { createPlanFeatureCreateInput, mapPlanRecord } from '../../shared/database/prisma-mappers';
 import { AppError } from '../../shared/errors/app-error';
 
 interface CreatePlanInput {
   name: string;
+  description?: string;
   price: number;
   billingCycle: 'MONTHLY' | 'YEARLY';
   features: string[];
@@ -13,6 +14,7 @@ interface CreatePlanInput {
 
 interface UpdatePlanInput {
   name?: string;
+  description?: string;
   price?: number;
   billingCycle?: 'MONTHLY' | 'YEARLY';
   features?: string[];
@@ -73,6 +75,7 @@ export class PlansRepository {
     const plan = await prisma.plan.create({
       data: {
         name: data.name,
+        description: data.description,
         price: data.price,
         billingCycle: data.billingCycle,
         isActive: data.isActive,
@@ -102,6 +105,7 @@ export class PlansRepository {
         where: { id },
         data: {
           ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.description !== undefined ? { description: data.description } : {}),
           ...(data.price !== undefined ? { price: data.price } : {}),
           ...(data.billingCycle !== undefined ? { billingCycle: data.billingCycle } : {}),
           ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),

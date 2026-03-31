@@ -3,9 +3,11 @@ import { AppError } from '../../shared/errors/app-error';
 import { paymentMethodsService } from '../payment-methods/payment-methods.service';
 import { paymentsService } from '../payments/payments.service';
 import type { AuthenticatedRequestUser } from '../../shared/types/common.types';
-import type { ChangePlanDto } from './dto/change-plan.dto';
-import type { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import type { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
+import type { ChangePlanDto } from './dto/change-plan.dto';
+import type { CheckoutSubscriptionDto } from './dto/checkout-subscription.dto';
+import type { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import type { SelectPlanDto } from './dto/select-plan.dto';
 import { SubscriptionsRepository } from './subscriptions.repository';
 
 export class SubscriptionsService {
@@ -21,6 +23,53 @@ export class SubscriptionsService {
       currentSubscription,
       history
     };
+  }
+
+  async selectPlan(currentUser: AuthenticatedRequestUser, payload: SelectPlanDto) {
+    const plan = await this.subscriptionsRepository.findPlanById(payload.planId);
+
+    if (!plan || !plan.isActive) {
+      throw new AppError('Selected plan is not available', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const existingSubscription = await this.subscriptionsRepository.findCurrentByUserId(currentUser.id);
+
+    if (existingSubscription?.status === 'ACTIVE') {
+      throw new AppError(
+        'User already has an active subscription. Use the plan change flow instead.',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    if (existingSubscription?.status === 'PENDING') {
+      const updatedPendingSubscription = await this.subscriptionsRepository.update(existingSubscription.id, {
+        planId: payload.planId,
+        status: 'PENDING',
+        startDate: null,
+        endDate: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false
+      });
+
+      if (!updatedPendingSubscription) {
+        throw new AppError('Unable to prepare pending subscription', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      }
+
+      return updatedPendingSubscription;
+    }
+
+    const subscription = await this.subscriptionsRepository.create({
+      userId: currentUser.id,
+      planId: payload.planId,
+      status: 'PENDING'
+    });
+
+    if (!subscription) {
+      throw new AppError('Unable to prepare pending subscription', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+    }
+
+    return subscription;
   }
 
   async createSubscription(currentUser: AuthenticatedRequestUser, payload: CreateSubscriptionDto) {
@@ -53,6 +102,33 @@ export class SubscriptionsService {
     if (!subscription) {
       throw new AppError('Unable to create subscription', HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
+
+    return paymentsService.processNewSubscriptionPayment({
+      subscriptionId: subscription.id,
+      paymentMethodId: paymentMethod.id,
+      simulateFailure: payload.simulateFailure
+    });
+  }
+
+  async checkoutPendingSubscription(
+    currentUser: AuthenticatedRequestUser,
+    subscriptionId: string,
+    payload: CheckoutSubscriptionDto
+  ) {
+    const subscription = await this.subscriptionsRepository.findById(subscriptionId);
+
+    if (!subscription || subscription.userId !== currentUser.id) {
+      throw new AppError('Subscription not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    if (subscription.status !== 'PENDING') {
+      throw new AppError('Only pending subscriptions can continue to checkout', HTTP_STATUS.BAD_REQUEST);
+    }
+
+    const paymentMethod = await paymentMethodsService.resolveForCheckout(currentUser, {
+      paymentMethodId: payload.paymentMethodId,
+      newPaymentMethod: payload.newPaymentMethod
+    });
 
     return paymentsService.processNewSubscriptionPayment({
       subscriptionId: subscription.id,

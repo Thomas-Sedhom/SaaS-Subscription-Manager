@@ -16,7 +16,7 @@ export class PaymentsService {
 
   async processNewSubscriptionPayment(options: {
     subscriptionId: string;
-    paymentMethodId: string;
+    paymentMethodId: string | null;
     simulateFailure?: boolean;
   }) {
     const subscription = await this.subscriptionsRepository.findById(options.subscriptionId);
@@ -34,7 +34,7 @@ export class PaymentsService {
       paymentMethodId: options.paymentMethodId,
       amount: subscription.plan.price,
       currency: 'USD',
-      provider: options.simulateFailure ? 'mock-fail' : 'mock-success',
+      provider: options.paymentMethodId ? 'saved-card' : 'one-time-card',
       status: 'PENDING',
       failureReason: null,
       type: 'SUBSCRIPTION_CREATE',
@@ -85,7 +85,7 @@ export class PaymentsService {
   async processPlanChangePayment(options: {
     subscriptionId: string;
     newPlanId: string;
-    paymentMethodId: string;
+    paymentMethodId: string | null;
     simulateFailure?: boolean;
   }) {
     const subscription = await this.subscriptionsRepository.findById(options.subscriptionId);
@@ -105,7 +105,7 @@ export class PaymentsService {
       paymentMethodId: options.paymentMethodId,
       amount: targetPlan.price,
       currency: 'USD',
-      provider: options.simulateFailure ? 'mock-fail' : 'mock-success',
+      provider: options.paymentMethodId ? 'saved-card' : 'one-time-card',
       status: 'PENDING',
       failureReason: null,
       type: 'PLAN_CHANGE',

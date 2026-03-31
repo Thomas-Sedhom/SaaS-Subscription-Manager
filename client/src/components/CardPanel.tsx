@@ -5,11 +5,12 @@ interface CardPanelProps {
   subtitle?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
+  className?: string;
 }
 
-export default function CardPanel({ title, subtitle, children, actions }: CardPanelProps) {
+export default function CardPanel({ title, subtitle, children, actions, className = '' }: CardPanelProps) {
   return (
-    <section className="card-panel">
+    <section className={`card-panel ${className}`.trim()}>
       {(title || subtitle || actions) && (
         <div className="card-panel__header">
           <div>

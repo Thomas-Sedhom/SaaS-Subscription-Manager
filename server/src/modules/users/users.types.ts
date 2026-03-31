@@ -1,4 +1,4 @@
-export interface UserResponse {
+﻿export interface UserResponse {
   id: string;
   name: string;
   email: string;
@@ -21,6 +21,7 @@ export interface UserSubscriptionResponse {
   plan: {
     id: string;
     name: string;
+    description: string | null;
     price: number;
     billingCycle: 'MONTHLY' | 'YEARLY';
     features: string[];

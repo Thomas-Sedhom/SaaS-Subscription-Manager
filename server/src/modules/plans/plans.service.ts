@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from '../../shared/constants/http-status';
+﻿import { HTTP_STATUS } from '../../shared/constants/http-status';
 import { AppError } from '../../shared/errors/app-error';
 import type { AuthenticatedRequestUser } from '../../shared/types/common.types';
 import type { CreatePlanDto } from './dto/create-plan.dto';
@@ -33,6 +33,7 @@ export class PlansService {
 
     return this.plansRepository.create({
       name: payload.name,
+      description: payload.description?.trim() || undefined,
       price: payload.price,
       billingCycle: payload.billingCycle,
       features: payload.features,
@@ -56,6 +57,7 @@ export class PlansService {
 
     const updatedPlan = await this.plansRepository.update(planId, {
       name: payload.name,
+      description: payload.description !== undefined ? payload.description.trim() : undefined,
       price: payload.price,
       billingCycle: payload.billingCycle,
       features: payload.features,

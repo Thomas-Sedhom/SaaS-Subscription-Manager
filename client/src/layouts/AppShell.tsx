@@ -8,6 +8,7 @@ const getNavLinkClassName = ({ isActive }: { isActive: boolean }) =>
 
 export default function AppShell() {
   const { user, isAuthenticated, logout } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
 
   return (
     <div className="app-shell">
@@ -16,14 +17,13 @@ export default function AppShell() {
           <NavLink className="brand" to="/">
             SaaS Subscription Manager
           </NavLink>
-          <p className="brand__tagline">Manage plans, subscriptions, payments, and admin operations.</p>
         </div>
 
         <nav className="topbar__nav">
-          <NavLink className={getNavLinkClassName} to="/plans">Plans</NavLink>
-          {isAuthenticated ? <NavLink className={getNavLinkClassName} to="/subscription">Subscription</NavLink> : null}
+          {!isAdmin ? <NavLink className={getNavLinkClassName} to="/plans">Plans</NavLink> : null}
+          {isAuthenticated && !isAdmin ? <NavLink className={getNavLinkClassName} to="/subscription">Dashboard</NavLink> : null}
           {isAuthenticated ? <NavLink className={getNavLinkClassName} to="/profile">Profile</NavLink> : null}
-          {user?.role === 'ADMIN' ? <NavLink className={getNavLinkClassName} to="/admin">Admin</NavLink> : null}
+          {isAdmin ? <NavLink className={getNavLinkClassName} to="/admin">Admin</NavLink> : null}
           {isAuthenticated ? (
             <Button variant="ghost" onClick={logout}>
               Logout

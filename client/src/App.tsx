@@ -4,7 +4,6 @@ import { AuthProvider, ProtectedRoute, PublicOnlyRoute } from './features/authen
 import AppShell from './layouts/AppShell';
 import AuthShell from './layouts/AuthShell';
 import AdminDashboardPage from './pages/AdminDashboardPage';
-import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PlansPage from './pages/PlansPage';
@@ -18,6 +17,14 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route element={<AuthShell />}>
+            <Route
+              path="/"
+              element={
+                <PublicOnlyRoute>
+                  <SignupPage />
+                </PublicOnlyRoute>
+              }
+            />
             <Route
               path="/login"
               element={
@@ -37,7 +44,6 @@ function App() {
           </Route>
 
           <Route element={<AppShell />}>
-            <Route path="/" element={<HomePage />} />
             <Route
               path="/plans"
               element={

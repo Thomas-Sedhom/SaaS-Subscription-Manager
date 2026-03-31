@@ -4,10 +4,11 @@ import { mapPaymentMethodRecord } from '../../shared/database/prisma-mappers';
 interface CreatePaymentMethodInput {
   userId: string;
   methodType: string;
-  methodDetails: string;
   isDefault: boolean;
   last4: string | null;
-  brand: string | null;
+  cardholderName: string | null;
+  expiryMonth: number | null;
+  expiryYear: number | null;
   isActive: boolean;
 }
 
@@ -60,10 +61,11 @@ export class PaymentMethodsRepository {
       data: {
         userId: data.userId,
         methodType: data.methodType,
-        methodDetails: data.methodDetails,
         isDefault: data.isDefault,
         last4: data.last4,
-        brand: data.brand,
+        cardholderName: data.cardholderName,
+        expiryMonth: data.expiryMonth,
+        expiryYear: data.expiryYear,
         isActive: data.isActive
       }
     });
