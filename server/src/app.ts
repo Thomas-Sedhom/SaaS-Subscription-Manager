@@ -16,19 +16,10 @@ export const createApp = () => {
   const app = express();
 
   app.use(helmet());
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        if (!origin || env.CORS_ORIGIN.includes(origin)) {
-          callback(null, true);
-          return;
-        }
-
-        callback(new Error(`Origin ${origin} is not allowed by CORS`));
-      },
-      credentials: true
-    })
-  );
+  app.use(cors({
+    origin: '*',
+    credentials: false // must be false when origin is '*'
+  }));
   app.use(express.json());
   app.use(cookieParser());
 
